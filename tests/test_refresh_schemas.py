@@ -9,7 +9,6 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
 import refresh_schemas  # noqa: E402
 
-
 # --- _pinned.json helpers ---
 
 
