@@ -28,6 +28,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 SCHEMAS_DIR = REPO_ROOT / "omh_shim" / "schemas"
 PINNED_PATH = SCHEMAS_DIR / "_pinned.json"
 RAW_BASE = "https://raw.githubusercontent.com/openmhealth/schemas"
+IEEE_RAW_BASE = "https://opensource.ieee.org/omh/1752/-/raw"
 
 # Top-level schemas to refresh. The local HRV placeholder is excluded.
 TARGETS: list[tuple[str, str]] = [
@@ -38,6 +39,25 @@ TARGETS: list[tuple[str, str]] = [
     ("data/omh_sleep-episode_1-1.json", "sleep-episode-1.1.json"),
     ("data/omh_physical-activity_1-2.json", "physical-activity-1.2.json"),
     ("data/omh_oxygen-saturation_2-0.json", "oxygen-saturation-2.0.json"),
+]
+
+# IEEE 1752.1 envelope schemas (metadata/). Pulled from opensource.ieee.org.
+IEEE_METADATA_TARGETS: list[tuple[str, str]] = [
+    # (vendored path under SCHEMAS_DIR, upstream path under schemas/)
+    ("metadata/data-point-1.0.json", "metadata/data-point-1.0.json"),
+    ("metadata/data-series-1.0.json", "metadata/data-series-1.0.json"),
+    ("metadata/header-1.0.json", "metadata/header-1.0.json"),
+    ("metadata/schema-id-1.0.json", "metadata/schema-id-1.0.json"),
+]
+
+# IEEE 1752.1 utility refs transitively required by the metadata envelope.
+IEEE_UTILITY_TARGETS: list[tuple[str, str]] = [
+    ("utility/date-time-1.0.json", "utility/date-time-1.0.json"),
+    ("utility/frequency-unit-value-1.0.json", "utility/frequency-unit-value-1.0.json"),
+    ("utility/duration-unit-value-1.0.json", "utility/duration-unit-value-1.0.json"),
+    ("utility/duration-unit-value-range-1.0.json", "utility/duration-unit-value-range-1.0.json"),
+    ("utility/unit-value-1.0.json", "utility/unit-value-1.0.json"),
+    ("utility/unit-value-range-1.0.json", "utility/unit-value-range-1.0.json"),
 ]
 
 
@@ -98,8 +118,11 @@ def walk_refs(node: object) -> set[str]:
 
 
 def fetch(url: str) -> str:
+    # Some hosts (e.g. opensource.ieee.org GitLab) reject the default Python
+    # User-Agent with HTTP 418, so set an explicit one.
+    req = urllib.request.Request(url, headers={"User-Agent": "omh-shim-refresh/1.0"})
     try:
-        with urllib.request.urlopen(url) as resp:
+        with urllib.request.urlopen(req) as resp:
             return resp.read().decode("utf-8")
     except urllib.error.HTTPError as e:
         sys.exit(f"HTTP {e.code} fetching {url}")
@@ -110,6 +133,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--omh-ref",
         help="Tag or SHA from openmhealth/schemas. Defaults to the ref in _pinned.json.",
+    )
+    parser.add_argument(
+        "--ieee-ref",
+        help="Tag or SHA from opensource.ieee.org/omh/1752. "
+        "Defaults to the ref in _pinned.json.",
     )
     args = parser.parse_args(argv)
 
@@ -142,16 +170,48 @@ def main(argv: list[str] | None = None) -> int:
         print(diff)
         print()
 
-    if not diffs:
+    ieee_ref, ieee_was_explicit = _resolve_ref(args.ieee_ref, family="ieee")
+    print()
+    print(f"opensource.ieee.org/omh/1752 ref: {ieee_ref}")
+    print()
+
+    ieee_diffs: dict[str, tuple[str, str]] = {}
+    for vendored, upstream in IEEE_METADATA_TARGETS + IEEE_UTILITY_TARGETS:
+        url = f"{IEEE_RAW_BASE}/{ieee_ref}/schemas/{upstream}"
+        new_content = fetch(url)
+        local_path = SCHEMAS_DIR / vendored
+        old_content = local_path.read_text() if local_path.exists() else ""
+
+        if old_content == new_content:
+            print(f"  unchanged: {vendored}")
+            continue
+
+        diff = "\n".join(
+            difflib.unified_diff(
+                old_content.splitlines(),
+                new_content.splitlines(),
+                fromfile=f"current/{vendored}",
+                tofile=f"upstream/{vendored}",
+                lineterm="",
+            )
+        )
+        ieee_diffs[vendored] = (new_content, diff)
+        print(f"  CHANGED:   {vendored}")
+        print(diff)
+        print()
+
+    all_diffs = {**diffs, **ieee_diffs}
+
+    if not all_diffs:
         print("All vendored schemas are up to date. No changes needed.")
         return 0
 
-    answer = input(f"Update {len(diffs)} file(s)? [y/N] ").strip().lower()
+    answer = input(f"Update {len(all_diffs)} file(s)? [y/N] ").strip().lower()
     if answer != "y":
         print("Aborted. No files changed.")
         return 1
 
-    for vendored, (new_content, _diff) in diffs.items():
+    for vendored, (new_content, _diff) in all_diffs.items():
         (SCHEMAS_DIR / vendored).write_text(new_content)
         print(f"  wrote {vendored}")
 
@@ -159,6 +219,13 @@ def main(argv: list[str] | None = None) -> int:
         today = datetime.date.today().isoformat()
         write_pinned(PINNED_PATH, family="omh", new_ref=ref, today=today)
         print(f"  updated {PINNED_PATH.relative_to(REPO_ROOT)} omh ref -> {ref} ({today})")
+
+    if ieee_was_explicit:
+        today = datetime.date.today().isoformat()
+        write_pinned(PINNED_PATH, family="ieee", new_ref=ieee_ref, today=today)
+        print(
+            f"  updated {PINNED_PATH.relative_to(REPO_ROOT)} ieee ref -> {ieee_ref} ({today})"
+        )
 
     print()
     print("Re-run pytest to confirm everything still validates.")
