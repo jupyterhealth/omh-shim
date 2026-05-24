@@ -9,7 +9,7 @@ ref resolution can be served from local files without network access.
 import importlib.resources
 import json
 from functools import lru_cache
-from typing import Any
+from typing import Any, NoReturn
 
 from jsonschema import Draft7Validator
 from referencing import Registry, Resource
@@ -34,7 +34,7 @@ class _NoNetwork:
     Mirrors JHE's pattern in jupyterhealth-exchange/core/utils.py:24-26.
     """
 
-    def __call__(self, uri: str):
+    def __call__(self, uri: str) -> NoReturn:
         raise RuntimeError(f"Remote $ref blocked (not preloaded): {uri}")
 
 
@@ -74,7 +74,7 @@ def _registry() -> Registry:
                 resources.append((ieee_base + name, res))
             if subdir == "utility":
                 resources.append((omh_base + name, res))
-    return Registry(retrieve=_NoNetwork()).with_resources(resources)
+    return Registry(retrieve=_NoNetwork()).with_resources(resources)  # type: ignore[call-arg]
 
 
 def validate_output(output: dict[str, Any], schema_id: str) -> None:
