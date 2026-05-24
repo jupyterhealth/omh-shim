@@ -78,6 +78,25 @@ def _resolve_ref(arg_ref: str | None, family: str) -> tuple[str, bool]:
         ) from None
 
 
+def walk_refs(node: object) -> set[str]:
+    """Collect relative-filename $refs from a JSON schema.
+
+    Skips intra-document refs (starting with '#') and absolute URLs
+    (starting with 'http'). Returns only bare filenames like 'unit-value-1.x.json'.
+    """
+    refs: set[str] = set()
+    if isinstance(node, dict):
+        ref = node.get("$ref")
+        if isinstance(ref, str) and not ref.startswith(("#", "http")):
+            refs.add(ref)
+        for value in node.values():
+            refs.update(walk_refs(value))
+    elif isinstance(node, list):
+        for item in node:
+            refs.update(walk_refs(item))
+    return refs
+
+
 def fetch(url: str) -> str:
     try:
         with urllib.request.urlopen(url) as resp:

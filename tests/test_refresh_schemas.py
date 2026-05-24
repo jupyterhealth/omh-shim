@@ -82,3 +82,19 @@ def test_resolve_ref_exits_when_pinned_missing(tmp_path, monkeypatch):
     monkeypatch.setattr(refresh_schemas, "PINNED_PATH", pinned)
     with pytest.raises(SystemExit, match="omh.*ref"):
         refresh_schemas._resolve_ref(None, family="omh")
+
+
+# --- walk_refs ---
+
+
+def test_walk_refs_collects_relative_refs():
+    schema = {"$ref": "unit-value-1.x.json",
+              "properties": {"x": {"$ref": "time-frame-1.x.json"},
+                             "y": {"$ref": "#/definitions/foo"}}}  # ignored
+    assert refresh_schemas.walk_refs(schema) == {
+        "unit-value-1.x.json", "time-frame-1.x.json"}
+
+
+def test_walk_refs_handles_nested():
+    schema = {"allOf": [{"$ref": "a.json"}, {"items": {"$ref": "b.json"}}]}
+    assert refresh_schemas.walk_refs(schema) == {"a.json", "b.json"}
