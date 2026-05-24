@@ -1,0 +1,77 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://w3id.org/ieee/ieee-1752-schema/header.json",
+    "title": "Header",
+    "description": "This schema represents the header of a data point or data series.",
+    "type": "object",
+    "definitions": {
+        "date_time": {
+            "$ref": "date-time-1.0.json"
+        },
+        "schema_id": {
+            "$ref": "schema-id-1.0.json"
+        },
+        "frequency_unit_value": {
+            "$ref": "frequency-unit-value-1.0.json"
+        }
+    },
+    "properties": {
+        "uuid": {
+            "description": "The identifier of this data point: a globally unique value, generated using RFC 4122 approach.",
+            "references": [
+                {
+                    "description": "A Universally Unique IDentifier (UUID) URN Namespace",
+                    "url": "https://tools.ietf.org/html/rfc4122"
+                }
+            ],
+            "type": "string",
+            "format": "uuid"
+        },
+        "schema_id": {
+            "description": "The schema identifier of the body of the data point or data series.",
+            "$ref": "#/definitions/schema_id"
+        },
+        "source_creation_date_time": {
+            "description": "The date time (timestamp) when this datapoint or data series was created at the original source. If the datapoint or data series is aggregated later, the date does not change. If the datapoint or data series is recalculated later (e.g., using a different algorithm), a new datapoint or data series is created with a different id and creation date.",
+            "$ref": "#/definitions/date_time"
+        },
+        "modality": {
+            "description": "The modality whereby the measure is obtained, e.g., sensed or self-reported",
+            "type": "string",
+            "enum": [
+                "sensed",
+                "self-reported"
+            ]
+        },
+        "acquisition_rate": {
+            "description": "The rate at which measures are acquired.",
+            "$ref": "#/definitions/frequency_unit_value"
+        },
+        "external_datasheets": {
+            "description": "Reference(s) to external documentation regarding the component(s) relevant to describe the collection, computation, use, etc. of this datapoint or data series, e.g., software, algorithm, study protocol, etc.",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "datasheet_type": {
+                        "description": "The type of component described or documented by the referenced datasheet, e.g., software, hardware, study.",
+                        "type": "string"
+                    },
+                    "datasheet_reference": {
+                        "description": "International Resource Identifier (IRI) of applicable datasheet(s). The expectation is that the IRI will convey resolvable location and access information for the resource identified resource.",
+                        "type": "string",
+                        "format": "iri"
+                    }
+                },
+                "required": [
+                    "datasheet_reference"
+                ]
+            }
+        }
+    },
+    "required": [
+        "uuid",
+        "schema_id",
+        "source_creation_date_time"
+    ]
+}
