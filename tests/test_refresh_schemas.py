@@ -54,3 +54,32 @@ def test_write_pinned_preserves_other_families(tmp_path):
     data = json.loads(pinned.read_text())
     assert data["omh"]["ref"] == "new-omh"
     assert data["ieee"]["ref"] == "1.0.0"  # untouched
+
+
+# --- _resolve_ref ---
+
+
+def test_resolve_ref_prefers_cli_arg(tmp_path, monkeypatch):
+    pinned = tmp_path / "_pinned.json"
+    pinned.write_text(json.dumps({"omh": {"ref": "from-pinned", "fetched": "x", "source": "y"}}))
+    monkeypatch.setattr(refresh_schemas, "PINNED_PATH", pinned)
+    ref, was_explicit = refresh_schemas._resolve_ref("from-cli", family="omh")
+    assert ref == "from-cli"
+    assert was_explicit is True
+
+
+def test_resolve_ref_falls_back_to_pinned(tmp_path, monkeypatch):
+    pinned = tmp_path / "_pinned.json"
+    pinned.write_text(json.dumps({"omh": {"ref": "from-pinned", "fetched": "x", "source": "y"}}))
+    monkeypatch.setattr(refresh_schemas, "PINNED_PATH", pinned)
+    ref, was_explicit = refresh_schemas._resolve_ref(None, family="omh")
+    assert ref == "from-pinned"
+    assert was_explicit is False
+
+
+def test_resolve_ref_exits_when_pinned_missing(tmp_path, monkeypatch):
+    pinned = tmp_path / "_pinned.json"
+    pinned.write_text(json.dumps({}))  # no families
+    monkeypatch.setattr(refresh_schemas, "PINNED_PATH", pinned)
+    with pytest.raises(SystemExit, match="omh.*ref"):
+        refresh_schemas._resolve_ref(None, family="omh")

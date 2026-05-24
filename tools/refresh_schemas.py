@@ -26,7 +26,6 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCHEMAS_DIR = REPO_ROOT / "omh_shim" / "schemas"
-README_PATH = SCHEMAS_DIR / "README.md"
 PINNED_PATH = SCHEMAS_DIR / "_pinned.json"
 RAW_BASE = "https://raw.githubusercontent.com/openmhealth/schemas"
 
@@ -59,19 +58,23 @@ def write_pinned(pinned_path: Path, *, family: str, new_ref: str, today: str) ->
     pinned_path.write_text(json.dumps(data, indent=2) + "\n")
 
 
-def _resolve_ref(arg_ref: str | None, readme_text: str) -> tuple[str, bool]:
+def _resolve_ref(arg_ref: str | None, family: str) -> tuple[str, bool]:
     """Return (ref_to_use, was_passed_explicitly).
 
-    Precedence: CLI arg > README. If neither is available, raise SystemExit.
+    Precedence: CLI arg > _pinned.json. Raises SystemExit if neither exists.
     """
     if arg_ref:
         return arg_ref, True
     try:
-        return parse_readme_ref(readme_text), False
-    except ValueError as e:
+        return read_pinned(PINNED_PATH, family=family), False
+    except (FileNotFoundError, KeyError):
+        try:
+            display_path = PINNED_PATH.relative_to(REPO_ROOT)
+        except ValueError:
+            display_path = PINNED_PATH
         raise SystemExit(
-            f"{e} Pass --omh-ref <tag-or-sha> or record one in "
-            f"{README_PATH.relative_to(REPO_ROOT)}."
+            f"No '{family}' ref recorded in {display_path}. "
+            f"Pass --{family}-ref <tag-or-sha> or record one."
         )
 
 
@@ -87,13 +90,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Refresh vendored OMH schemas at a pinned ref.")
     parser.add_argument(
         "--omh-ref",
-        help="Tag or SHA from openmhealth/schemas. Defaults to the ref recorded "
-        "in omh_shim/schemas/README.md.",
+        help="Tag or SHA from openmhealth/schemas. Defaults to the ref in _pinned.json.",
     )
     args = parser.parse_args(argv)
 
-    readme_text = README_PATH.read_text()
-    ref, ref_was_explicit = _resolve_ref(args.omh_ref, readme_text)
+    ref, ref_was_explicit = _resolve_ref(args.omh_ref, family="omh")
     print(f"openmhealth/schemas ref: {ref}")
     print()
 
@@ -137,8 +138,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if ref_was_explicit:
         today = datetime.date.today().isoformat()
-        README_PATH.write_text(update_readme_ref(readme_text, new_ref=ref, today=today))
-        print(f"  updated {README_PATH.relative_to(REPO_ROOT)} ref -> {ref} ({today})")
+        write_pinned(PINNED_PATH, family="omh", new_ref=ref, today=today)
+        print(f"  updated {PINNED_PATH.relative_to(REPO_ROOT)} omh ref -> {ref} ({today})")
 
     print()
     print("Re-run pytest to confirm everything still validates.")
