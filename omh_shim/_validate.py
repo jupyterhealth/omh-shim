@@ -34,7 +34,10 @@ def _registry() -> Registry:
     schemas_pkg = importlib.resources.files("omh_shim.schemas")
     resources = []
     for subdir in ("metadata", "data", "utility"):
-        for entry in schemas_pkg.joinpath(subdir).iterdir():
+        sub = schemas_pkg.joinpath(subdir)
+        if not sub.is_dir():
+            continue
+        for entry in sub.iterdir():
             name = entry.name
             if not name.endswith(".json"):
                 continue

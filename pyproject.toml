@@ -46,7 +46,7 @@ Issues = "https://github.com/jupyterhealth/omh-shim/issues"
 include = ["omh_shim*"]
 
 [tool.setuptools.package-data]
-"omh_shim.schemas" = ["*.json", "README.md"]
+"omh_shim.schemas" = ["**/*.json", "*.json", "README.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
