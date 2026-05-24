@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
-"""Refresh vendored OMH schemas from openmhealth/schemas main.
+"""Refresh vendored OMH schemas from openmhealth/schemas at a pinned ref.
 
-Pulls the 6 top-level schemas (5 standard OMH + the local HRV placeholder is
-left untouched), diffs each against the existing vendored copy, and prompts
-before overwriting. Records the new commit SHA for omh_shim/schemas/README.md.
+By default the script verifies the 5 vendored top-level schemas against the
+ref recorded in ``omh_shim/schemas/README.md``. Pass ``--omh-ref <tag-or-sha>``
+to fetch a different ref; when changes are confirmed, the README ref is
+updated automatically. The local HRV placeholder is intentionally excluded.
 
 Run from the repo root::
 
-    python tools/refresh_schemas.py
+    python tools/refresh_schemas.py                     # verify against pinned ref
+    python tools/refresh_schemas.py --omh-ref v1.0.0    # bump to a tag
+    python tools/refresh_schemas.py --omh-ref 7969045   # bump to a SHA
 
 Standard library only — no extra deps.
 """
