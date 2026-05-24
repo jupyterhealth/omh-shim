@@ -5,6 +5,17 @@ All notable changes to omh-shim are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `oura_raw.oxygen_saturation` converter — maps Oura's `daily_spo2`
+  shape (`{day, spo2_percentage: {average}}`) to `omh:oxygen-saturation:2.0`.
+  Both `oura_raw` and `ow_normalized` sources now support all 7 data types.
+- Fixture files and parameterized test coverage for `oxygen_saturation`
+  across both sources (`oura_raw` and `ow_normalized`). The
+  `ow_normalized` converter existed previously but lacked test fixtures.
+
 ## [1.0.1] — 2026-05-13
 
 ### Fixed

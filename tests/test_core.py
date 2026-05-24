@@ -105,6 +105,7 @@ def test_convert_wraps_type_error():
 DAILY_CASES = [
     ("oura_raw", "step_count", {"day": "2026-04-09", "steps": 100}),
     ("oura_raw", "physical_activity", {"day": "2026-04-09"}),
+    ("oura_raw", "oxygen_saturation", {"day": "2026-04-09", "spo2_percentage": {"average": 96.5}}),
     ("ow_normalized", "step_count", {"date": "2026-04-09", "steps": 100}),
     ("ow_normalized", "physical_activity", {"date": "2026-04-09"}),
     ("ow_normalized", "sleep_duration", {"date": "2026-04-09", "sleep_total_duration_minutes": 480}),
@@ -377,10 +378,8 @@ def test_header_validates_against_ieee_schema():
         for fixture in (FIXTURES / source).glob("*_input.json"):
             data_type = fixture.stem.replace("_input", "")
             sample = json.loads(fixture.read_text())
-            tz = UTC if data_type in ("step_count", "physical_activity",
-                                       "sleep_duration") else None
             result = convert(source=source, data_type=data_type,
-                             sample=sample, tz=tz)
+                             sample=sample, tz=UTC)
             assert "header" in result, f"{source}/{data_type}: missing header"
 
 

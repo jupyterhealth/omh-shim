@@ -100,3 +100,28 @@ def physical_activity(
     set_optional(out, "distance", sample, "equivalent_walking_distance", unit="m")
     set_optional(out, "kcal_burned", sample, "active_calories", unit="kcal")
     return out
+
+
+def oxygen_saturation(
+    sample: Mapping[str, Any], *, tz: tzinfo | None
+) -> dict[str, Any]:
+    """Input: Oura ``daily_spo2/data[i]`` with a nested ``spo2_percentage.average``.
+
+    Example::
+
+        {"day": "2021-01-01", "spo2_percentage": {"average": 93.0}, ...}
+
+    Oura reports SpO2 as a daily aggregate (the nightly average from the
+    per-minute measurements the ring takes while the user sleeps), so the
+    effective time frame is the full calendar day in ``tz``.
+    """
+    spo2_pct = sample.get("spo2_percentage")
+    if not isinstance(spo2_pct, Mapping) or "average" not in spo2_pct:
+        raise ConversionError(
+            "oura_raw oxygen_saturation requires 'spo2_percentage.average' "
+            "(a nested object with an 'average' field)"
+        )
+    return {
+        "oxygen_saturation": unit_value(spo2_pct["average"], "%"),
+        "effective_time_frame": {"time_interval": day_interval(sample["day"], tz=tz)},
+    }

@@ -21,6 +21,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 DATA_TYPES = [
     "heart_rate",
     "heart_rate_variability",
+    "oxygen_saturation",
     "step_count",
     "sleep_duration",
     "sleep_episode",
@@ -98,6 +99,19 @@ def test_ow_step_count_rejects_unknown_shape():
             sample={"foo": "bar"},
             tz=UTC,
         )
+
+
+def test_oura_oxygen_saturation_rejects_missing_spo2_percentage():
+    with pytest.raises(ConversionError, match="spo2_percentage"):
+        convert(source="oura_raw", data_type="oxygen_saturation",
+                sample={"day": "2026-04-09"}, tz=UTC)
+
+
+def test_oura_oxygen_saturation_rejects_flat_value():
+    """spo2_percentage must be a nested object with 'average', not a bare number."""
+    with pytest.raises(ConversionError, match="spo2_percentage"):
+        convert(source="oura_raw", data_type="oxygen_saturation",
+                sample={"day": "2026-04-09", "spo2_percentage": 96.5}, tz=UTC)
 
 
 def test_ow_physical_activity_omits_optional_fields_when_absent():

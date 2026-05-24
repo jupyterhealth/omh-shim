@@ -32,7 +32,8 @@ omh_record = convert(
 )
 ```
 
-Daily data types (``step_count``, ``physical_activity``, ``sleep_duration``)
+Daily data types (``step_count``, ``physical_activity``, ``sleep_duration``,
+``oxygen_saturation``)
 aggregate over a calendar day, so they REQUIRE an explicit timezone so the day
 boundaries reflect the user's local day rather than silently assuming UTC:
 

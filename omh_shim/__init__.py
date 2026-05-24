@@ -91,7 +91,7 @@ def convert(
     source metadata when available).
 
     ``tz`` is required for daily data types (step_count, physical_activity,
-    sleep_duration) — pass ``datetime.UTC`` or a ``ZoneInfo``.
+    sleep_duration, oxygen_saturation) — pass ``datetime.UTC`` or a ``ZoneInfo``.
 
     Raises ``ConversionError`` on invalid input, ``ValidationError`` on
     schema mismatch (when ``validate=True``).

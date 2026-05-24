@@ -141,3 +141,27 @@ This document covers the **body** content of each converter. For the IEEE 1752.1
 | `non_wear_time` | Device metadata, not a health measurement |
 | `score` | Oura-proprietary |
 | `total_calories` | Includes BMR; `active_calories` is the clinically relevant subset |
+
+---
+
+## oxygen_saturation → `omh:oxygen-saturation:2.0`
+
+**Oura endpoint:** `/v2/usercollection/daily_spo2`
+
+| Oura field | OMH field | Type | Notes |
+|---|---|---|---|
+| `spo2_percentage.average` | `oxygen_saturation.value` | float | percent (%) |
+| `day` | `effective_time_frame.time_interval` | day interval | Requires `tz` |
+
+### Endpoint-specific handling
+
+- **Nested input.** Oura wraps the SpO2 value in `{"spo2_percentage": {"average": 96.5}}`. The converter raises `ConversionError` if `spo2_percentage` is missing, not a mapping, or lacks `average`.
+- **Timezone required.** Same as `step_count` / `physical_activity` — the `day` field needs explicit timezone for day bounds.
+- **Daily aggregate.** Oura reports SpO2 as the nightly average from per-minute measurements during sleep. The shim represents this as a full calendar day interval.
+
+### Not mapped (gaps)
+
+| Oura field | Reason |
+|---|---|
+| `breathing_disturbance_index` | No OMH equivalent; maps to IEEE `apnea-hypopnea-index` (not shimmed) |
+| `spo2_percentage.min` / `.max` | Could map via descriptive-statistic; deferred |
