@@ -11,6 +11,7 @@ import pytest
 
 from omh_shim import SCHEMA_IDS, ConversionError, ValidationError, convert
 from omh_shim._helpers import day_interval, parse_datetime
+from omh_shim._schema_loader import HEADER_SCHEMA_ID
 
 # --- public API ---
 
@@ -224,17 +225,6 @@ def test_ow_sleep_duration_fractional_minutes():
 # --- validate kwarg ---
 
 
-def test_validate_false_skips(monkeypatch):
-    from omh_shim import _validate
-    monkeypatch.setattr(_validate, "validate_output",
-                        lambda *a, **kw: (_ for _ in ()).throw(AssertionError("should not call")))
-    result = convert(source="ow_normalized", data_type="heart_rate",
-                     sample={"timestamp": "2026-04-09T08:00:00Z",
-                             "type": "heart_rate", "value": 72},
-                     validate=False)
-    assert result["body"]["heart_rate"]["value"] == 72
-
-
 # --- header envelope (IEEE 1752.1 / OMH data-point) ---
 
 
@@ -398,10 +388,10 @@ def test_header_validation_rejects_empty():
     """An empty header must fail validation (missing required fields)."""
     from omh_shim._validate import validate_output
     with pytest.raises(ValidationError):
-        validate_output({}, "ieee:header:1.0")
+        validate_output({}, HEADER_SCHEMA_ID)
 
 
-def test_validate_false_skips_header_validation(monkeypatch):
+def test_validate_false_skips(monkeypatch):
     """validate=False must skip both body AND header validation."""
     from omh_shim import _validate
     call_log = []

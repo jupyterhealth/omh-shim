@@ -25,6 +25,7 @@ import json
 import sys
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -120,6 +121,35 @@ def walk_refs(node: object) -> set[str]:
     return refs
 
 
+def _check_targets(
+    targets: list[tuple[str, str]],
+    url_fn: Callable[[str, str], str],
+    ref: str,
+) -> dict[str, tuple[str, str]]:
+    """Fetch each target at ref, diff against local, return {vendored: (content, diff)} for changed files."""
+    diffs: dict[str, tuple[str, str]] = {}
+    for vendored, upstream in targets:
+        url = url_fn(ref, upstream)
+        new_content = fetch(url)
+        local_path = SCHEMAS_DIR / vendored
+        old_content = local_path.read_text() if local_path.exists() else ""
+        if old_content == new_content:
+            print(f"  unchanged: {vendored}")
+            continue
+        diff_text = "\n".join(
+            difflib.unified_diff(
+                old_content.splitlines(), new_content.splitlines(),
+                fromfile=f"current/{vendored}", tofile=f"upstream/{vendored}",
+                lineterm="",
+            )
+        )
+        diffs[vendored] = (new_content, diff_text)
+        print(f"  CHANGED:   {vendored}")
+        print(diff_text)
+        print()
+    return diffs
+
+
 def fetch(url: str) -> str:
     # Some hosts (e.g. opensource.ieee.org GitLab) reject the default Python
     # User-Agent with HTTP 418, so set an explicit one.
@@ -148,60 +178,22 @@ def main(argv: list[str] | None = None) -> int:
     print(f"openmhealth/schemas ref: {ref}")
     print()
 
-    diffs: dict[str, tuple[str, str]] = {}
-    for vendored, upstream in TARGETS:
-        url = f"{RAW_BASE}/{ref}/schema/omh/{upstream}"
-        new_content = fetch(url)
-        local_path = SCHEMAS_DIR / vendored
-        old_content = local_path.read_text() if local_path.exists() else ""
-
-        if old_content == new_content:
-            print(f"  unchanged: {vendored}")
-            continue
-
-        diff = "\n".join(
-            difflib.unified_diff(
-                old_content.splitlines(),
-                new_content.splitlines(),
-                fromfile=f"current/{vendored}",
-                tofile=f"upstream/{vendored}",
-                lineterm="",
-            )
-        )
-        diffs[vendored] = (new_content, diff)
-        print(f"  CHANGED:   {vendored}")
-        print(diff)
-        print()
+    diffs = _check_targets(
+        TARGETS,
+        lambda ref, upstream: f"{RAW_BASE}/{ref}/schema/omh/{upstream}",
+        ref,
+    )
 
     ieee_ref, ieee_was_explicit = _resolve_ref(args.ieee_ref, family="ieee")
     print()
     print(f"opensource.ieee.org/omh/1752 ref: {ieee_ref}")
     print()
 
-    ieee_diffs: dict[str, tuple[str, str]] = {}
-    for vendored, upstream in IEEE_METADATA_TARGETS + IEEE_UTILITY_TARGETS:
-        url = f"{IEEE_RAW_BASE}/{ieee_ref}/schemas/{upstream}"
-        new_content = fetch(url)
-        local_path = SCHEMAS_DIR / vendored
-        old_content = local_path.read_text() if local_path.exists() else ""
-
-        if old_content == new_content:
-            print(f"  unchanged: {vendored}")
-            continue
-
-        diff = "\n".join(
-            difflib.unified_diff(
-                old_content.splitlines(),
-                new_content.splitlines(),
-                fromfile=f"current/{vendored}",
-                tofile=f"upstream/{vendored}",
-                lineterm="",
-            )
-        )
-        ieee_diffs[vendored] = (new_content, diff)
-        print(f"  CHANGED:   {vendored}")
-        print(diff)
-        print()
+    ieee_diffs = _check_targets(
+        IEEE_METADATA_TARGETS + IEEE_UTILITY_TARGETS,
+        lambda ref, upstream: f"{IEEE_RAW_BASE}/{ref}/schemas/{upstream}",
+        ieee_ref,
+    )
 
     all_diffs = {**diffs, **ieee_diffs}
 
@@ -229,6 +221,18 @@ def main(argv: list[str] | None = None) -> int:
         print(
             f"  updated {PINNED_PATH.relative_to(REPO_ROOT)} ieee ref -> {ieee_ref} ({today})"
         )
+
+    # Verify transitive $ref closure
+    all_refs: set[str] = set()
+    for p in SCHEMAS_DIR.rglob("*.json"):
+        if p.name == "_pinned.json":
+            continue
+        all_refs.update(walk_refs(json.loads(p.read_text())))
+    existing = {p.name for p in SCHEMAS_DIR.rglob("*.json")}
+    missing = sorted(r for r in all_refs if r not in existing)
+    if missing:
+        print(f"\n  WARNING: {len(missing)} transitive $ref(s) not vendored: {missing}")
+        print("  Run the ref-closure check from the plan and vendor the missing files.")
 
     print()
     print("Re-run pytest to confirm everything still validates.")

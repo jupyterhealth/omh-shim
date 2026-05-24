@@ -21,6 +21,8 @@ _FILENAMES: dict[str, str] = {
     "ieee:header:1.0": "metadata/header-1.0.json",
 }
 
+HEADER_SCHEMA_ID = "ieee:header:1.0"
+
 
 def known_ids() -> frozenset[str]:
     """Schema ids this loader has filename entries for."""
