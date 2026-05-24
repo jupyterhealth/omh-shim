@@ -324,3 +324,30 @@ def test_header_local_schema_namespace():
     )
     sid = result["header"]["schema_id"]
     assert sid == {"namespace": "local", "name": "heart-rate-variability", "version": "1.0"}
+
+
+def test_validate_raises_on_remote_ref():
+    """Unknown $ref URIs must fail loudly via NoNetwork, not fetch over the network."""
+    from jsonschema import Draft7Validator
+
+    from omh_shim._validate import _registry
+
+    schema = {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "$ref": "https://example.invalid/never-resolvable.json"
+    }
+    validator = Draft7Validator(schema, registry=_registry())
+    # iter_errors raises when a $ref can't be resolved; the NoNetwork retriever
+    # ensures the underlying cause is an explicit RuntimeError marking the URI
+    # as blocked, rather than a silent fetch attempt or a generic Unresolvable.
+    with pytest.raises(Exception) as exc_info:
+        list(validator.iter_errors({}))
+    chain_msgs = []
+    err = exc_info.value
+    while err is not None:
+        chain_msgs.append(str(err))
+        err = err.__cause__
+    combined = " | ".join(chain_msgs)
+    assert "Remote" in combined or "blocked" in combined, (
+        f"Expected NoNetwork marker in error chain, got: {combined}"
+    )

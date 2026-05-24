@@ -28,6 +28,16 @@ def _validator(schema_id: str) -> Draft7Validator:
     return Draft7Validator(load_schema(schema_id), registry=_registry())
 
 
+class _NoNetwork:
+    """Retriever that raises instead of fetching unknown $ref URIs.
+
+    Mirrors JHE's pattern in jupyterhealth-exchange/core/utils.py:24-26.
+    """
+
+    def __call__(self, uri: str):
+        raise RuntimeError(f"Remote $ref blocked (not preloaded): {uri}")
+
+
 @lru_cache(maxsize=1)
 def _registry() -> Registry:
     """Build a referencing.Registry that serves every vendored schema by filename."""
@@ -44,7 +54,7 @@ def _registry() -> Registry:
             with entry.open("r", encoding="utf-8") as f:
                 doc = json.load(f)
             resources.append((name, Resource.from_contents(doc, default_specification=DRAFT7)))
-    return Registry().with_resources(resources)
+    return Registry(retrieve=_NoNetwork()).with_resources(resources)
 
 
 def validate_output(output: dict[str, Any], schema_id: str) -> None:
