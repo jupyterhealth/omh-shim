@@ -1,47 +1,53 @@
-# Vendored OMH Schemas
+# Vendored Schemas
 
-These schemas are vendored from [openmhealth/schemas](https://github.com/openmhealth/schemas)
-at commit `36078a89e5e5efeba8dfc590a81cc42fd140c815` (main, fetched 2026-04-09).
+Schemas are vendored from two upstream sources:
 
-## Top-level schemas (the 7 that omh-shim's `convert()` validates against)
+- **OMH:** `https://github.com/openmhealth/schemas` — body schemas (heart-rate, step-count, etc.)
+- **IEEE 1752.1:** `https://opensource.ieee.org/omh/1752` — envelope schemas (header, data-point, schema-id) and shared utility refs
 
-| Filename | Source path | Notes |
+Pinned versions are recorded in [`_pinned.json`](_pinned.json). Don't edit that file by hand — use `tools/refresh_schemas.py` (see below).
+
+## Layout
+
+```
+omh_shim/schemas/
+  metadata/     # IEEE 1752.1 envelope (data-point, data-series, header, schema-id)
+  data/         # OMH body schemas (heart-rate, step-count, sleep-*, physical-activity, oxygen-saturation, hr-variability)
+  utility/      # Shared $ref deps (time-frame, unit-value, descriptive-statistic, ...)
+```
+
+## Body schemas (the 7 that `convert()` validates against)
+
+| Filename | Source | Notes |
 |---|---|---|
-| `omh_heart-rate_2-0.json` | `schema/omh/heart-rate-2.0.json` | Standard OMH heart-rate v2.0 |
-| `omh_step-count_3-0.json` | `schema/omh/step-count-3.0.json` | Standard OMH step-count v3.0 |
-| `omh_sleep-duration_2-0.json` | `schema/omh/sleep-duration-2.0.json` | Standard OMH sleep-duration v2.0 |
-| `omh_sleep-episode_1-1.json` | `schema/omh/sleep-episode-1.1.json` | Standard OMH sleep-episode v1.1 |
-| `omh_physical-activity_1-2.json` | `schema/omh/physical-activity-1.2.json` | Standard OMH physical-activity v1.2 (latest available; spec called for 2.0 but upstream max is 1.2 as of 2026-04) |
-| `omh_oxygen-saturation_2-0.json` | `schema/omh/oxygen-saturation-2.0.json` | Standard OMH oxygen-saturation v2.0 |
-| `omh_heart-rate-variability_1-0.json` | **local placeholder** | Open mHealth has not published a canonical HRV schema. This is a small non-standard schema mirroring OMH unit-value/time-frame patterns. Re-vendor with the canonical schema if/when one is published upstream. |
-
-## Transitive `$ref` dependencies
-
-The OMH top-level schemas reference other schemas via `$ref` (e.g. `unit-value-1.x.json`).
-All transitively-referenced schemas are vendored alongside so the validator can resolve refs
-from local files without network access. Vendored aliases (`*-1.x.json`) have been resolved
-to point at concrete-version content rather than being one-line filename pointers.
-
-These files are loaded into a `referencing.Registry` at validator startup so jsonschema
-Draft7Validator can resolve `$ref` strings to local files.
+| `data/omh_heart-rate_2-0.json` | OMH `schema/omh/heart-rate-2.0.json` | |
+| `data/omh_step-count_3-0.json` | OMH `schema/omh/step-count-3.0.json` | |
+| `data/omh_sleep-duration_2-0.json` | OMH `schema/omh/sleep-duration-2.0.json` | |
+| `data/omh_sleep-episode_1-1.json` | OMH `schema/omh/sleep-episode-1.1.json` | |
+| `data/omh_physical-activity_1-2.json` | OMH `schema/omh/physical-activity-1.2.json` | |
+| `data/omh_oxygen-saturation_2-0.json` | OMH `schema/omh/oxygen-saturation-2.0.json` | |
+| `data/local_heart-rate-variability_1-0.json` | local placeholder | Open mHealth has no canonical HRV schema. Locally-authored. |
 
 ## Refresh procedure
 
-The refresh script is pinned to a specific ref recorded above. Run with no
-args to verify the vendored files still match that ref:
+Default mode verifies the vendored files match the recorded refs in `_pinned.json`:
 
 ```bash
 python tools/refresh_schemas.py
 ```
 
-To pull a different ref (a tag or commit SHA), pass `--omh-ref`. On
-confirmed update, the script rewrites the ref recorded in this README
-automatically:
+To bump either pin, pass the corresponding flag:
 
 ```bash
-python tools/refresh_schemas.py --omh-ref v1.0.0
-python tools/refresh_schemas.py --omh-ref 7969045b1c2d...
+python tools/refresh_schemas.py --omh-ref <tag-or-sha>
+python tools/refresh_schemas.py --ieee-ref 1.0.3
+python tools/refresh_schemas.py --omh-ref <tag-or-sha> --ieee-ref 1.0.3
 ```
 
-The script never writes to this README when run without `--omh-ref` —
-default-mode runs only verify the vendored files match the recorded ref.
+The script shows diffs, prompts for confirmation, writes the schema files, and updates `_pinned.json` (only for families where you passed a flag — default-mode runs never write).
+
+## Body validation source decision
+
+For the 7 implemented data types, body validation uses the OMH schemas. Some of these (`physical-activity`, `step-count`, `sleep-episode`) also have IEEE 1752.1 versions; migration is deferred pending [JHE#443](https://github.com/jupyterhealth/jupyterhealth-exchange/issues/443) (JHE schemas drift from canonical sources).
+
+Header validation uses the IEEE 1752.1 envelope (`metadata/header-1.0.json`) — added in [omh-shim#10](https://github.com/jupyterhealth/omh-shim/issues/10).

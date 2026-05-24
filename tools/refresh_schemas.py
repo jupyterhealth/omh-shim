@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
-"""Refresh vendored OMH schemas from openmhealth/schemas at a pinned ref.
+"""Refresh vendored schemas from OMH and IEEE 1752.1 at pinned refs.
 
-By default the script verifies the 6 vendored top-level schemas against the
-ref recorded in ``omh_shim/schemas/_pinned.json``. Pass ``--omh-ref <tag-or-sha>``
-to fetch a different ref; when changes are confirmed, the pinned ref is
-updated automatically. The local HRV placeholder is intentionally excluded.
+By default the script verifies the vendored body (OMH) and envelope/utility
+(IEEE 1752.1) schemas against the refs recorded in
+``omh_shim/schemas/_pinned.json``. Pass ``--omh-ref`` and/or ``--ieee-ref``
+to fetch a different ref for either source; when changes are confirmed, the
+pinned ref for any family passed explicitly is updated automatically. The
+local HRV placeholder is intentionally excluded.
 
 Run from the repo root::
 
-    python tools/refresh_schemas.py                     # verify against pinned ref
-    python tools/refresh_schemas.py --omh-ref v1.0.0    # bump to a tag
-    python tools/refresh_schemas.py --omh-ref 7969045   # bump to a SHA
+    python tools/refresh_schemas.py                     # verify against pinned refs
+    python tools/refresh_schemas.py --omh-ref v1.0.0    # bump OMH ref to a tag
+    python tools/refresh_schemas.py --ieee-ref 1.0.3    # bump IEEE ref
+    python tools/refresh_schemas.py --omh-ref ... --ieee-ref ...
 
 Standard library only — no extra deps.
 """
