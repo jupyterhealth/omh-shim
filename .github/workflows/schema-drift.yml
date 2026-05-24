@@ -1,0 +1,137 @@
+name: schema-drift-check
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Monday 9am UTC
+  workflow_dispatch: {}   # manual trigger for testing
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+          cache: pip
+
+      - name: Install
+        run: pip install -e .
+
+      - name: Check for drift and refresh
+        id: drift
+        run: |
+          PINNED_OMH=$(python -c "import json; print(json.loads(open('omh_shim/schemas/_pinned.json').read())['omh']['ref'])")
+          PINNED_IEEE=$(python -c "import json; print(json.loads(open('omh_shim/schemas/_pinned.json').read())['ieee']['ref'])")
+
+          UPSTREAM_OMH=$(curl -fsSL https://api.github.com/repos/openmhealth/schemas/git/refs/heads/main | python -c "import sys,json; print(json.load(sys.stdin)['object']['sha'])")
+          UPSTREAM_IEEE=$(curl -fsSL "https://opensource.ieee.org/api/v4/projects/omh%2F1752/repository/tags?per_page=1" -H "User-Agent: omh-shim-drift-check/1.0" | python -c "import sys,json; print(json.load(sys.stdin)[0]['name'])")
+
+          echo "pinned_omh=$PINNED_OMH" >> "$GITHUB_OUTPUT"
+          echo "pinned_ieee=$PINNED_IEEE" >> "$GITHUB_OUTPUT"
+          echo "upstream_omh=$UPSTREAM_OMH" >> "$GITHUB_OUTPUT"
+          echo "upstream_ieee=$UPSTREAM_IEEE" >> "$GITHUB_OUTPUT"
+
+          ARGS=""
+          if [ "$PINNED_OMH" != "$UPSTREAM_OMH" ]; then
+            ARGS="$ARGS --omh-ref $UPSTREAM_OMH"
+          fi
+          if [ "$PINNED_IEEE" != "$UPSTREAM_IEEE" ]; then
+            ARGS="$ARGS --ieee-ref $UPSTREAM_IEEE"
+          fi
+
+          if [ -z "$ARGS" ]; then
+            echo "No drift detected."
+            echo "drift=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Drift detected. Running refresh..."
+          echo "y" | python tools/refresh_schemas.py $ARGS
+
+          if git diff --quiet omh_shim/schemas/; then
+            echo "Upstream refs moved but no vendored files changed."
+            echo "drift=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "drift=true" >> "$GITHUB_OUTPUT"
+          CHANGED_FILES=$(git diff --name-only omh_shim/schemas/)
+          echo "changed_files<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$CHANGED_FILES" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push
+        if: steps.drift.outputs.drift == 'true'
+        env:
+          PINNED_OMH: ${{ steps.drift.outputs.pinned_omh }}
+          PINNED_IEEE: ${{ steps.drift.outputs.pinned_ieee }}
+          UPSTREAM_OMH: ${{ steps.drift.outputs.upstream_omh }}
+          UPSTREAM_IEEE: ${{ steps.drift.outputs.upstream_ieee }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B automated/schema-drift
+          git add -A omh_shim/schemas/
+          git commit -m "chore(schemas): update vendored schemas
+
+          OMH: ${PINNED_OMH} -> ${UPSTREAM_OMH}
+          IEEE: ${PINNED_IEEE} -> ${UPSTREAM_IEEE}"
+          git push -f origin automated/schema-drift
+
+      - name: Open or update PR
+        if: steps.drift.outputs.drift == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PINNED_OMH: ${{ steps.drift.outputs.pinned_omh }}
+          PINNED_IEEE: ${{ steps.drift.outputs.pinned_ieee }}
+          UPSTREAM_OMH: ${{ steps.drift.outputs.upstream_omh }}
+          UPSTREAM_IEEE: ${{ steps.drift.outputs.upstream_ieee }}
+          CHANGED_FILES: ${{ steps.drift.outputs.changed_files }}
+        run: |
+          BODY=$(cat <<EOF
+          ## Schema drift detected
+
+          | Source | Old ref | New ref |
+          |---|---|---|
+          | OMH | \`${PINNED_OMH}\` | \`${UPSTREAM_OMH}\` |
+          | IEEE | \`${PINNED_IEEE}\` | \`${UPSTREAM_IEEE}\` |
+
+          ### Changed files
+
+          \`\`\`
+          ${CHANGED_FILES}
+          \`\`\`
+
+          ### What to do
+
+          1. Review the **Files changed** tab for breaking changes
+          2. If CI is green, the change is additive — squash-merge
+          3. If CI is red, a converter needs updating to match the new schema
+
+          ### Upstream diffs
+
+          - [OMH](https://github.com/openmhealth/schemas/compare/${PINNED_OMH}..${UPSTREAM_OMH})
+          - [IEEE](https://opensource.ieee.org/omh/1752/-/compare/${PINNED_IEEE}...${UPSTREAM_IEEE})
+          EOF
+          )
+
+          EXISTING=$(gh pr list --head automated/schema-drift --state open --json number -q '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            gh pr edit "$EXISTING" --body "$BODY"
+            echo "Updated existing PR #$EXISTING"
+          else
+            gh pr create \
+              --head automated/schema-drift \
+              --base main \
+              --title "chore(schemas): upstream drift detected" \
+              --body "$BODY" \
+              --assignee surfdoc \
+              --label schema-drift
+            echo "Created new PR"
+          fi
