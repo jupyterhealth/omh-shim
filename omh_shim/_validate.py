@@ -40,7 +40,20 @@ class _NoNetwork:
 
 @lru_cache(maxsize=1)
 def _registry() -> Registry:
-    """Build a referencing.Registry that serves every vendored schema by filename."""
+    """Build a referencing.Registry that serves every vendored schema.
+
+    Each schema is registered under multiple URIs so $refs resolve regardless
+    of how they're written:
+    - bare filename (e.g. "header-1.0.json")
+    - canonical IEEE w3id URL (metadata/ + utility/ schemas)
+    - canonical OMH w3id URL (utility/ schemas, since OMH bodies $ref utility
+      schemas using various URI forms)
+
+    Mirrors JHE's referencing.Registry setup in core/utils.py.
+    """
+    ieee_base = "https://w3id.org/ieee/ieee-1752-schema/"
+    omh_base = "https://w3id.org/openmhealth/schemas/omh/"
+
     schemas_pkg = importlib.resources.files("omh_shim.schemas")
     resources = []
     for subdir in ("metadata", "data", "utility"):
@@ -53,7 +66,14 @@ def _registry() -> Registry:
                 continue
             with entry.open("r", encoding="utf-8") as f:
                 doc = json.load(f)
-            resources.append((name, Resource.from_contents(doc, default_specification=DRAFT7)))
+            res = Resource.from_contents(doc, default_specification=DRAFT7)
+            resources.append((name, res))
+            # Also register under the w3id permalinks so refs like
+            # "https://w3id.org/ieee/ieee-1752-schema/<name>" resolve.
+            if subdir in ("metadata", "utility"):
+                resources.append((ieee_base + name, res))
+            if subdir == "utility":
+                resources.append((omh_base + name, res))
     return Registry(retrieve=_NoNetwork()).with_resources(resources)
 
 

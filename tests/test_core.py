@@ -351,3 +351,23 @@ def test_validate_raises_on_remote_ref():
     assert "Remote" in combined or "blocked" in combined, (
         f"Expected NoNetwork marker in error chain, got: {combined}"
     )
+
+
+def test_registry_resolves_w3id_refs():
+    """A schema referencing a w3id IEEE URL must resolve from the local registry."""
+    from jsonschema import Draft7Validator
+
+    from omh_shim._validate import _registry
+
+    schema = {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "$ref": "https://w3id.org/ieee/ieee-1752-schema/header-1.0.json"
+    }
+    validator = Draft7Validator(schema, registry=_registry())
+    # If the $ref doesn't resolve, this raises. Validating an empty object
+    # against the IEEE header should produce errors (required fields missing),
+    # not a fetch attempt.
+    errors = list(validator.iter_errors({}))
+    assert errors  # missing required fields
+    assert all("Remote" not in str(e) for e in errors), \
+        "Should not have hit NoNetwork — w3id ref should resolve locally"
