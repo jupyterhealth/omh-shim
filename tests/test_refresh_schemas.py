@@ -61,3 +61,25 @@ def test_update_readme_ref_raises_when_no_line_to_replace():
         refresh_schemas.update_readme_ref(
             "README with no ref line.\n", new_ref="x", today="2026-05-24"
         )
+
+
+# --- _resolve_ref ---
+
+
+def test_resolve_ref_prefers_cli_arg():
+    text = "at commit `from-readme` (fetched 2026-01-01).\n"
+    ref, was_explicit = refresh_schemas._resolve_ref("from-cli", text)
+    assert ref == "from-cli"
+    assert was_explicit is True
+
+
+def test_resolve_ref_falls_back_to_readme():
+    text = "at commit `from-readme` (fetched 2026-01-01).\n"
+    ref, was_explicit = refresh_schemas._resolve_ref(None, text)
+    assert ref == "from-readme"
+    assert was_explicit is False
+
+
+def test_resolve_ref_exits_when_neither_available():
+    with pytest.raises(SystemExit, match="Pass --omh-ref"):
+        refresh_schemas._resolve_ref(None, "README with no ref.\n")

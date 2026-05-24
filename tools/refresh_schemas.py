@@ -12,8 +12,9 @@ Run from the repo root::
 Standard library only — no extra deps.
 """
 
+import argparse
+import datetime
 import difflib
-import json
 import re
 import sys
 import urllib.error
@@ -22,7 +23,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCHEMAS_DIR = REPO_ROOT / "omh_shim" / "schemas"
-GITHUB_API = "https://api.github.com/repos/openmhealth/schemas"
+README_PATH = SCHEMAS_DIR / "README.md"
 RAW_BASE = "https://raw.githubusercontent.com/openmhealth/schemas"
 
 # Top-level schemas to refresh. The local HRV placeholder is excluded.
@@ -73,6 +74,22 @@ def update_readme_ref(text: str, *, new_ref: str, today: str) -> str:
     return out
 
 
+def _resolve_ref(arg_ref: str | None, readme_text: str) -> tuple[str, bool]:
+    """Return (ref_to_use, was_passed_explicitly).
+
+    Precedence: CLI arg > README. If neither is available, raise SystemExit.
+    """
+    if arg_ref:
+        return arg_ref, True
+    try:
+        return parse_readme_ref(readme_text), False
+    except ValueError as e:
+        raise SystemExit(
+            f"{e} Pass --omh-ref <tag-or-sha> or record one in "
+            f"{README_PATH.relative_to(REPO_ROOT)}."
+        )
+
+
 def fetch(url: str) -> str:
     try:
         with urllib.request.urlopen(url) as resp:
@@ -81,19 +98,23 @@ def fetch(url: str) -> str:
         sys.exit(f"HTTP {e.code} fetching {url}")
 
 
-def get_main_sha() -> str:
-    body = fetch(f"{GITHUB_API}/git/refs/heads/main")
-    return json.loads(body)["object"]["sha"]
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Refresh vendored OMH schemas at a pinned ref.")
+    parser.add_argument(
+        "--omh-ref",
+        help="Tag or SHA from openmhealth/schemas. Defaults to the ref recorded "
+        "in omh_shim/schemas/README.md.",
+    )
+    args = parser.parse_args(argv)
 
-
-def main() -> int:
-    sha = get_main_sha()
-    print(f"openmhealth/schemas main is at {sha}")
+    readme_text = README_PATH.read_text()
+    ref, ref_was_explicit = _resolve_ref(args.omh_ref, readme_text)
+    print(f"openmhealth/schemas ref: {ref}")
     print()
 
-    diffs: dict[str, str] = {}
+    diffs: dict[str, tuple[str, str]] = {}
     for vendored, upstream in TARGETS:
-        url = f"{RAW_BASE}/{sha}/schema/omh/{upstream}"
+        url = f"{RAW_BASE}/{ref}/schema/omh/{upstream}"
         new_content = fetch(url)
         local_path = SCHEMAS_DIR / vendored
         old_content = local_path.read_text() if local_path.exists() else ""
@@ -129,9 +150,13 @@ def main() -> int:
         (SCHEMAS_DIR / vendored).write_text(new_content)
         print(f"  wrote {vendored}")
 
+    if ref_was_explicit:
+        today = datetime.date.today().isoformat()
+        README_PATH.write_text(update_readme_ref(readme_text, new_ref=ref, today=today))
+        print(f"  updated {README_PATH.relative_to(REPO_ROOT)} ref -> {ref} ({today})")
+
     print()
-    print(f"Update omh_shim/schemas/README.md with the new SHA: {sha}")
-    print("Then re-run pytest to confirm everything still validates.")
+    print("Re-run pytest to confirm everything still validates.")
     return 0
 
 
