@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Refresh vendored OMH schemas from openmhealth/schemas at a pinned ref.
 
-By default the script verifies the 5 vendored top-level schemas against the
+By default the script verifies the 6 vendored top-level schemas against the
 ref recorded in ``omh_shim/schemas/README.md``. Pass ``--omh-ref <tag-or-sha>``
 to fetch a different ref; when changes are confirmed, the README ref is
 updated automatically. The local HRV placeholder is intentionally excluded.
@@ -37,6 +37,7 @@ TARGETS: list[tuple[str, str]] = [
     ("omh_sleep-duration_2-0.json", "sleep-duration-2.0.json"),
     ("omh_sleep-episode_1-1.json", "sleep-episode-1.1.json"),
     ("omh_physical-activity_1-2.json", "physical-activity-1.2.json"),
+    ("omh_oxygen-saturation_2-0.json", "oxygen-saturation-2.0.json"),
 ]
 
 
