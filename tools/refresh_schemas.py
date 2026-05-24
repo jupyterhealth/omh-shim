@@ -54,6 +54,25 @@ def parse_readme_ref(text: str) -> str:
     return match.group(1)
 
 
+_REF_LINE_REPLACE_RE = re.compile(r"at commit `[^`]+` \([^)]*\)\.")
+
+
+def update_readme_ref(text: str, *, new_ref: str, today: str) -> str:
+    r"""Rewrite the `at commit \`<ref>\` (...)` line in README text.
+
+    ``today`` is passed in (not read from datetime.date.today()) so callers
+    can control the recorded date — useful for tests and for users running
+    the script across midnight UTC.
+
+    Raises ValueError if no matching line exists.
+    """
+    new_line = f"at commit `{new_ref}` (fetched {today})."
+    out, n = _REF_LINE_REPLACE_RE.subn(new_line, text, count=1)
+    if n == 0:
+        raise ValueError("No ref line to replace in README.")
+    return out
+
+
 def fetch(url: str) -> str:
     try:
         with urllib.request.urlopen(url) as resp:
