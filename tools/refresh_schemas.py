@@ -2,8 +2,8 @@
 """Refresh vendored OMH schemas from openmhealth/schemas at a pinned ref.
 
 By default the script verifies the 6 vendored top-level schemas against the
-ref recorded in ``omh_shim/schemas/README.md``. Pass ``--omh-ref <tag-or-sha>``
-to fetch a different ref; when changes are confirmed, the README ref is
+ref recorded in ``omh_shim/schemas/_pinned.json``. Pass ``--omh-ref <tag-or-sha>``
+to fetch a different ref; when changes are confirmed, the pinned ref is
 updated automatically. The local HRV placeholder is intentionally excluded.
 
 Run from the repo root::
@@ -18,7 +18,7 @@ Standard library only — no extra deps.
 import argparse
 import datetime
 import difflib
-import re
+import json
 import sys
 import urllib.error
 import urllib.request
@@ -27,6 +27,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCHEMAS_DIR = REPO_ROOT / "omh_shim" / "schemas"
 README_PATH = SCHEMAS_DIR / "README.md"
+PINNED_PATH = SCHEMAS_DIR / "_pinned.json"
 RAW_BASE = "https://raw.githubusercontent.com/openmhealth/schemas"
 
 # Top-level schemas to refresh. The local HRV placeholder is excluded.
@@ -41,41 +42,21 @@ TARGETS: list[tuple[str, str]] = [
 ]
 
 
-_REF_LINE_RE = re.compile(r"at commit `([^`]+)`")
+def read_pinned(pinned_path: Path, *, family: str) -> str:
+    """Read the pinned ref for a schema family ('omh' or 'ieee') from JSON."""
+    data = json.loads(pinned_path.read_text())
+    return data[family]["ref"]
 
 
-def parse_readme_ref(text: str) -> str:
-    r"""Extract the pinned ref from omh_shim/schemas/README.md text.
+def write_pinned(pinned_path: Path, *, family: str, new_ref: str, today: str) -> None:
+    """Update the recorded ref + fetched date for a schema family.
 
-    Looks for the `at commit \`<ref>\`` pattern. Returns the ref string
-    (SHA or tag). Raises ValueError if not found.
+    Preserves other families' entries.
     """
-    match = _REF_LINE_RE.search(text)
-    if not match:
-        raise ValueError(
-            "No ref found in README. Expected a line containing "
-            "`at commit \\`<ref>\\``."
-        )
-    return match.group(1)
-
-
-_REF_LINE_REPLACE_RE = re.compile(r"at commit `[^`]+` \([^)]*\)\.")
-
-
-def update_readme_ref(text: str, *, new_ref: str, today: str) -> str:
-    r"""Rewrite the `at commit \`<ref>\` (...)` line in README text.
-
-    ``today`` is passed in (not read from datetime.date.today()) so callers
-    can control the recorded date — useful for tests and for users running
-    the script across midnight UTC.
-
-    Raises ValueError if no matching line exists.
-    """
-    new_line = f"at commit `{new_ref}` (fetched {today})."
-    out, n = _REF_LINE_REPLACE_RE.subn(new_line, text, count=1)
-    if n == 0:
-        raise ValueError("No ref line to replace in README.")
-    return out
+    data = json.loads(pinned_path.read_text())
+    data[family]["ref"] = new_ref
+    data[family]["fetched"] = today
+    pinned_path.write_text(json.dumps(data, indent=2) + "\n")
 
 
 def _resolve_ref(arg_ref: str | None, readme_text: str) -> tuple[str, bool]:

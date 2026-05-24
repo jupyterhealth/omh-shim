@@ -1,5 +1,6 @@
 """Unit tests for tools/refresh_schemas.py helpers."""
 
+import json
 import sys
 from pathlib import Path
 
@@ -9,77 +10,47 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
 import refresh_schemas  # noqa: E402
 
 
-def test_parse_readme_ref_extracts_sha():
-    text = (
-        "These schemas are vendored from openmhealth/schemas\n"
-        "at commit `36078a89e5e5efeba8dfc590a81cc42fd140c815` (main, fetched 2026-04-09).\n"
-    )
-    assert refresh_schemas.parse_readme_ref(text) == "36078a89e5e5efeba8dfc590a81cc42fd140c815"
+# --- _pinned.json helpers ---
 
 
-def test_parse_readme_ref_extracts_tag():
-    text = "at commit `v1.0.0` (fetched 2026-05-01).\n"
-    assert refresh_schemas.parse_readme_ref(text) == "v1.0.0"
+def test_read_pinned_returns_recorded_ref(tmp_path):
+    pinned = tmp_path / "_pinned.json"
+    pinned.write_text(json.dumps({
+        "omh": {"ref": "abc123", "fetched": "2026-04-09",
+                "source": "https://github.com/openmhealth/schemas"}
+    }))
+    assert refresh_schemas.read_pinned(pinned, family="omh") == "abc123"
 
 
-def test_parse_readme_ref_raises_when_missing():
-    with pytest.raises(ValueError, match="No ref found"):
-        refresh_schemas.parse_readme_ref("README with no ref line.\n")
+def test_read_pinned_raises_when_family_missing(tmp_path):
+    pinned = tmp_path / "_pinned.json"
+    pinned.write_text(json.dumps({"omh": {"ref": "abc", "fetched": "x", "source": "y"}}))
+    with pytest.raises(KeyError, match="ieee"):
+        refresh_schemas.read_pinned(pinned, family="ieee")
 
 
-# --- update_readme_ref ---
+def test_write_pinned_updates_ref_and_date(tmp_path):
+    pinned = tmp_path / "_pinned.json"
+    pinned.write_text(json.dumps({
+        "omh": {"ref": "old", "fetched": "2026-01-01",
+                "source": "https://github.com/openmhealth/schemas"}
+    }))
+    refresh_schemas.write_pinned(pinned, family="omh", new_ref="new",
+                                 today="2026-05-24")
+    data = json.loads(pinned.read_text())
+    assert data["omh"]["ref"] == "new"
+    assert data["omh"]["fetched"] == "2026-05-24"
+    assert data["omh"]["source"] == "https://github.com/openmhealth/schemas"
 
 
-def test_update_readme_ref_rewrites_sha_and_date():
-    text = (
-        "Header line\n"
-        "at commit `oldsha` (main, fetched 2026-04-09).\n"
-        "Trailing content.\n"
-    )
-    out = refresh_schemas.update_readme_ref(text, new_ref="newsha", today="2026-05-24")
-    assert "at commit `newsha` (fetched 2026-05-24)." in out
-    assert "oldsha" not in out
-    assert "Header line\n" in out
-    assert "Trailing content.\n" in out
-
-
-def test_update_readme_ref_preserves_other_content():
-    text = (
-        "# Title\n\n"
-        "Some prose with `backticks` and other content.\n"
-        "at commit `abc123` (fetched 2026-01-01).\n"
-        "More prose.\n"
-    )
-    out = refresh_schemas.update_readme_ref(text, new_ref="def456", today="2026-05-24")
-    assert "Some prose with `backticks` and other content.\n" in out
-    assert "More prose.\n" in out
-    assert "abc123" not in out
-
-
-def test_update_readme_ref_raises_when_no_line_to_replace():
-    with pytest.raises(ValueError, match="No ref line"):
-        refresh_schemas.update_readme_ref(
-            "README with no ref line.\n", new_ref="x", today="2026-05-24"
-        )
-
-
-# --- _resolve_ref ---
-
-
-def test_resolve_ref_prefers_cli_arg():
-    text = "at commit `from-readme` (fetched 2026-01-01).\n"
-    ref, was_explicit = refresh_schemas._resolve_ref("from-cli", text)
-    assert ref == "from-cli"
-    assert was_explicit is True
-
-
-def test_resolve_ref_falls_back_to_readme():
-    text = "at commit `from-readme` (fetched 2026-01-01).\n"
-    ref, was_explicit = refresh_schemas._resolve_ref(None, text)
-    assert ref == "from-readme"
-    assert was_explicit is False
-
-
-def test_resolve_ref_exits_when_neither_available():
-    with pytest.raises(SystemExit, match="Pass --omh-ref"):
-        refresh_schemas._resolve_ref(None, "README with no ref.\n")
+def test_write_pinned_preserves_other_families(tmp_path):
+    pinned = tmp_path / "_pinned.json"
+    pinned.write_text(json.dumps({
+        "omh": {"ref": "old-omh", "fetched": "2026-01-01", "source": "x"},
+        "ieee": {"ref": "1.0.0", "fetched": "2026-01-01", "source": "y"}
+    }))
+    refresh_schemas.write_pinned(pinned, family="omh", new_ref="new-omh",
+                                 today="2026-05-24")
+    data = json.loads(pinned.read_text())
+    assert data["omh"]["ref"] == "new-omh"
+    assert data["ieee"]["ref"] == "1.0.0"  # untouched
