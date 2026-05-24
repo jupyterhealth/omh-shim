@@ -14,6 +14,7 @@ Standard library only — no extra deps.
 
 import difflib
 import json
+import re
 import sys
 import urllib.error
 import urllib.request
@@ -33,6 +34,24 @@ TARGETS: list[tuple[str, str]] = [
     ("omh_sleep-episode_1-1.json", "sleep-episode-1.1.json"),
     ("omh_physical-activity_1-2.json", "physical-activity-1.2.json"),
 ]
+
+
+_REF_LINE_RE = re.compile(r"at commit `([^`]+)`")
+
+
+def parse_readme_ref(text: str) -> str:
+    r"""Extract the pinned ref from omh_shim/schemas/README.md text.
+
+    Looks for the `at commit \`<ref>\`` pattern. Returns the ref string
+    (SHA or tag). Raises ValueError if not found.
+    """
+    match = _REF_LINE_RE.search(text)
+    if not match:
+        raise ValueError(
+            "No ref found in README. Expected a line containing "
+            "`at commit \\`<ref>\\``."
+        )
+    return match.group(1)
 
 
 def fetch(url: str) -> str:
