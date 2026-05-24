@@ -30,9 +30,9 @@ uses a ``local:`` namespace placeholder (OMH has no canonical HRV schema)."""
 _registered = {dt for (_, dt) in _dispatch.REGISTRY}
 if _registered != SCHEMA_IDS.keys():
     raise RuntimeError(f"REGISTRY/SCHEMA_IDS drift: {_registered ^ SCHEMA_IDS.keys()}")
-if set(SCHEMA_IDS.values()) != _schema_loader.known_ids():
+if not set(SCHEMA_IDS.values()) <= _schema_loader.known_ids():
     raise RuntimeError(
-        f"SCHEMA_IDS/loader drift: {set(SCHEMA_IDS.values()) ^ _schema_loader.known_ids()}"
+        f"SCHEMA_IDS/loader drift: {set(SCHEMA_IDS.values()) - _schema_loader.known_ids()}"
     )
 del _registered
 
@@ -102,10 +102,10 @@ def convert(
     schema_id = SCHEMA_IDS[data_type]
     if validate:
         _validate.validate_output(body, schema_id)
-    return {
-        "header": build_header(
-            schema_id,
-            external_datasheets=_extract_datasheets(sample, source=source),
-        ),
-        "body": body,
-    }
+    header = build_header(
+        schema_id,
+        external_datasheets=_extract_datasheets(sample, source=source),
+    )
+    if validate:
+        _validate.validate_output(header, "ieee:header:1.0")
+    return {"header": header, "body": body}

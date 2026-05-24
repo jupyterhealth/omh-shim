@@ -18,6 +18,7 @@ _FILENAMES: dict[str, str] = {
     "omh:sleep-episode:1.1": "data/omh_sleep-episode_1-1.json",
     "omh:physical-activity:1.2": "data/omh_physical-activity_1-2.json",
     "omh:oxygen-saturation:2.0": "data/omh_oxygen-saturation_2-0.json",
+    "ieee:header:1.0": "metadata/header-1.0.json",
 }
 
 
