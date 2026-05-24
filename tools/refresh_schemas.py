@@ -75,7 +75,7 @@ def _resolve_ref(arg_ref: str | None, family: str) -> tuple[str, bool]:
         raise SystemExit(
             f"No '{family}' ref recorded in {display_path}. "
             f"Pass --{family}-ref <tag-or-sha> or record one."
-        )
+        ) from None
 
 
 def fetch(url: str) -> str:
