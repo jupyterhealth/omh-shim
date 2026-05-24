@@ -33,13 +33,14 @@ def _registry() -> Registry:
     """Build a referencing.Registry that serves every vendored schema by filename."""
     schemas_pkg = importlib.resources.files("omh_shim.schemas")
     resources = []
-    for entry in schemas_pkg.iterdir():
-        name = entry.name
-        if not name.endswith(".json"):
-            continue
-        with entry.open("r", encoding="utf-8") as f:
-            doc = json.load(f)
-        resources.append((name, Resource.from_contents(doc, default_specification=DRAFT7)))
+    for subdir in ("metadata", "data", "utility"):
+        for entry in schemas_pkg.joinpath(subdir).iterdir():
+            name = entry.name
+            if not name.endswith(".json"):
+                continue
+            with entry.open("r", encoding="utf-8") as f:
+                doc = json.load(f)
+            resources.append((name, Resource.from_contents(doc, default_specification=DRAFT7)))
     return Registry().with_resources(resources)
 
 

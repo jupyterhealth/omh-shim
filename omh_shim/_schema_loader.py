@@ -11,13 +11,13 @@ from functools import cache
 from typing import Any
 
 _FILENAMES: dict[str, str] = {
-    "omh:heart-rate:2.0": "omh_heart-rate_2-0.json",
-    "local:heart-rate-variability:1.0": "local_heart-rate-variability_1-0.json",
-    "omh:step-count:3.0": "omh_step-count_3-0.json",
-    "omh:sleep-duration:2.0": "omh_sleep-duration_2-0.json",
-    "omh:sleep-episode:1.1": "omh_sleep-episode_1-1.json",
-    "omh:physical-activity:1.2": "omh_physical-activity_1-2.json",
-    "omh:oxygen-saturation:2.0": "omh_oxygen-saturation_2-0.json",
+    "omh:heart-rate:2.0": "data/omh_heart-rate_2-0.json",
+    "local:heart-rate-variability:1.0": "data/local_heart-rate-variability_1-0.json",
+    "omh:step-count:3.0": "data/omh_step-count_3-0.json",
+    "omh:sleep-duration:2.0": "data/omh_sleep-duration_2-0.json",
+    "omh:sleep-episode:1.1": "data/omh_sleep-episode_1-1.json",
+    "omh:physical-activity:1.2": "data/omh_physical-activity_1-2.json",
+    "omh:oxygen-saturation:2.0": "data/omh_oxygen-saturation_2-0.json",
 }
 
 

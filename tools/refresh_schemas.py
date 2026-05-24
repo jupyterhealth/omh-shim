@@ -32,12 +32,12 @@ RAW_BASE = "https://raw.githubusercontent.com/openmhealth/schemas"
 # Top-level schemas to refresh. The local HRV placeholder is excluded.
 TARGETS: list[tuple[str, str]] = [
     # (vendored filename, upstream path within schema/omh/)
-    ("omh_heart-rate_2-0.json", "heart-rate-2.0.json"),
-    ("omh_step-count_3-0.json", "step-count-3.0.json"),
-    ("omh_sleep-duration_2-0.json", "sleep-duration-2.0.json"),
-    ("omh_sleep-episode_1-1.json", "sleep-episode-1.1.json"),
-    ("omh_physical-activity_1-2.json", "physical-activity-1.2.json"),
-    ("omh_oxygen-saturation_2-0.json", "oxygen-saturation-2.0.json"),
+    ("data/omh_heart-rate_2-0.json", "heart-rate-2.0.json"),
+    ("data/omh_step-count_3-0.json", "step-count-3.0.json"),
+    ("data/omh_sleep-duration_2-0.json", "sleep-duration-2.0.json"),
+    ("data/omh_sleep-episode_1-1.json", "sleep-episode-1.1.json"),
+    ("data/omh_physical-activity_1-2.json", "physical-activity-1.2.json"),
+    ("data/omh_oxygen-saturation_2-0.json", "oxygen-saturation-2.0.json"),
 ]
 
 
