@@ -93,17 +93,23 @@ invalid sample shapes, naive (timezone-less) datetimes, or a missing ``tz``
 for daily data types. It raises `ValidationError` if the converter output
 fails schema validation.
 
-## Supported sources and data types (v1.0)
+## Supported sources and data types
 
 | `source` | `data_type` values |
 |---|---|
-| `ow_normalized` | `heart_rate`, `heart_rate_variability`, `step_count`, `sleep_duration`, `sleep_episode`, `physical_activity` |
-| `oura_raw` | `heart_rate`, `heart_rate_variability`, `step_count`, `sleep_duration`, `sleep_episode`, `physical_activity` |
+| `oura_raw` | `heart_rate`, `heart_rate_variability`, `oxygen_saturation`, `step_count`, `sleep_duration`, `sleep_episode`, `physical_activity` |
+| `ow_normalized` | `heart_rate`, `heart_rate_variability`, `oxygen_saturation`, `step_count`, `sleep_duration`, `sleep_episode`, `physical_activity` |
 
 Note: `heart_rate_variability` targets the local placeholder schema
 `local:heart-rate-variability:1.0` (Open mHealth has not published a canonical
 HRV schema as of 2026-04). The `local:` namespace is deliberate — downstream
 consumers should not assume OMH-standard interoperability for HRV records.
+
+## Adding a new source
+
+See [`docs/adding-a-source.md`](docs/adding-a-source.md) for a step-by-step
+guide to adding a new device source (converter functions, test fixtures,
+documentation).
 
 ## Mapping references
 
