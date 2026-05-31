@@ -58,19 +58,17 @@ convert(
 )
 ```
 
-Pass `header=True` to get the full IEEE 1752.1 data-point envelope with
-UUID, schema_id components, creation timestamp, modality, and optional
-`external_datasheets`:
+Every conversion returns the full IEEE 1752.1 data-point envelope —
+`{"header": ..., "body": ...}` — with UUID, schema_id components, creation
+timestamp, modality, and `external_datasheets` auto-populated from the sample's
+source metadata (a nested `source` dict, or the device implied by `source` for
+raw feeds like `oura_raw`):
 
 ```python
 convert(
     source="oura_raw",
     data_type="heart_rate",
-    sample={"bpm": 72, "timestamp": "2026-04-09T08:00:00Z"},
-    header=True,
-    external_datasheets=[
-        {"datasheet_type": "manufacturer", "datasheet_reference": "Oura"},
-    ],
+    sample={"bpm": 72, "source": "rest", "timestamp": "2026-04-09T03:15:00+00:00"},
 )
 # Returns:
 # {
@@ -79,11 +77,11 @@ convert(
 #     "schema_id": {"namespace": "omh", "name": "heart-rate", "version": "2.0"},
 #     "source_creation_date_time": "...",
 #     "modality": "sensed",
-#     "external_datasheets": [{"datasheet_type": "manufacturer", "datasheet_reference": "Oura"}]
+#     "external_datasheets": [{"datasheet_type": "manufacturer", "datasheet_reference": "Oura Ring"}]
 #   },
 #   "body": {
 #     "heart_rate": {"value": 72.0, "unit": "beats/min"},
-#     "effective_time_frame": {"date_time": "2026-04-09T08:00:00Z"}
+#     "effective_time_frame": {"date_time": "2026-04-09T03:15:00Z"}
 #   }
 # }
 ```
