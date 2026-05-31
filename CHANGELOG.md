@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixture files and parameterized test coverage for `oxygen_saturation`
   across both sources (`oura_raw` and `ow_normalized`). The
   `ow_normalized` converter existed previously but lacked test fixtures.
+- `known_ids()` and `load_schema()` are now public (re-exported from the
+  top-level package) so downstream consumers can enumerate and load any
+  vendored schema by id without reaching into private modules.
+- Vendored the clinical OMH body schemas `blood-glucose:4.0`,
+  `blood-pressure:4.0`, `body-temperature:4.0`, `respiratory-rate:2.0`, and
+  `rr-interval:1.0`, plus their transitive utility refs. These are served via
+  `known_ids()` / `load_schema()` for downstream consumers (e.g. the
+  JupyterHealth Exchange MCP server) that need to serve and validate OMH
+  bodies; omh-shim has no wearable converter that produces them, so they are
+  not part of `SCHEMA_IDS` / `convert()`. `tools/refresh_schemas.py` now tracks
+  them for drift detection, and `tests/test_schema_coverage.py` asserts each
+  one's full transitive `$ref` closure resolves offline.
 
 ## [1.0.1] — 2026-05-13
 

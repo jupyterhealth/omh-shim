@@ -16,6 +16,11 @@ omh_shim/schemas/
   utility/      # Shared $ref deps (time-frame, unit-value, descriptive-statistic, ...)
 ```
 
+Some `data/` body schemas (e.g. the clinical `blood-pressure`, `blood-glucose`)
+are vendored to be *served and validated* by downstream consumers but have no
+`convert()` converter in omh-shim. These are tracked in
+`tests/test_schema_coverage.py` as `SERVED_NO_CONVERTER`.
+
 ## Refresh procedure
 
 Default mode verifies the vendored files match the recorded refs in `_pinned.json`:

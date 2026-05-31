@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Refresh vendored schemas from OMH and IEEE 1752.1 at pinned refs.
 
-By default the script verifies the vendored body (OMH) and envelope/utility
-(IEEE 1752.1) schemas against the refs recorded in
+By default the script verifies the vendored body + utility (OMH) and
+envelope/utility (IEEE 1752.1) schemas against the refs recorded in
 ``omh_shim/schemas/_pinned.json``. Pass ``--omh-ref`` and/or ``--ieee-ref``
 to fetch a different ref for either source; when changes are confirmed, the
 pinned ref for any family passed explicitly is updated automatically. The
@@ -43,6 +43,25 @@ TARGETS: list[tuple[str, str]] = [
     ("data/omh_sleep-episode_1-1.json", "sleep-episode-1.1.json"),
     ("data/omh_physical-activity_1-2.json", "physical-activity-1.2.json"),
     ("data/omh_oxygen-saturation_2-0.json", "oxygen-saturation-2.0.json"),
+    # Clinical body schemas (served for downstream consumers; no converters).
+    ("data/omh_blood-glucose_4-0.json", "blood-glucose-4.0.json"),
+    ("data/omh_blood-pressure_4-0.json", "blood-pressure-4.0.json"),
+    ("data/omh_body-temperature_4-0.json", "body-temperature-4.0.json"),
+    ("data/omh_respiratory-rate_2-0.json", "respiratory-rate-2.0.json"),
+    ("data/omh_rr-interval_1-0.json", "rr-interval-1.0.json"),
+]
+
+# OMH utility/sub-body schemas transitively required by the clinical bodies.
+# These live under schema/omh/ upstream and are vendored into utility/. The
+# upstream ``*.x.json`` files are symlink pointers to a concrete version, so
+# fetching follows the pointer and stores the concrete content under the ``.x``
+# name the bodies $ref (see _check_targets).
+OMH_UTILITY_TARGETS: list[tuple[str, str]] = [
+    ("utility/body-location-1.x.json", "body-location-1.x.json"),
+    ("utility/systolic-blood-pressure-1.x.json", "systolic-blood-pressure-1.x.json"),
+    ("utility/diastolic-blood-pressure-1.x.json", "diastolic-blood-pressure-1.x.json"),
+    ("utility/specimen-source-2.x.json", "specimen-source-2.x.json"),
+    ("utility/temporal-relationship-to-meal-1.x.json", "temporal-relationship-to-meal-1.x.json"),
 ]
 
 # IEEE 1752.1 envelope schemas (metadata/). Pulled from opensource.ieee.org.
@@ -62,6 +81,11 @@ IEEE_UTILITY_TARGETS: list[tuple[str, str]] = [
     ("utility/duration-unit-value-range-1.0.json", "utility/duration-unit-value-range-1.0.json"),
     ("utility/unit-value-1.0.json", "utility/unit-value-1.0.json"),
     ("utility/unit-value-range-1.0.json", "utility/unit-value-range-1.0.json"),
+    # Additional IEEE utility refs required by the clinical bodies.
+    ("utility/time-frame-1.0.json", "utility/time-frame-1.0.json"),
+    ("utility/time-interval-1.0.json", "utility/time-interval-1.0.json"),
+    ("utility/temperature-unit-value-1.0.json", "utility/temperature-unit-value-1.0.json"),
+    ("utility/body-posture-1.0.json", "utility/body-posture-1.0.json"),
 ]
 
 
@@ -125,12 +149,26 @@ def _check_targets(
     targets: list[tuple[str, str]],
     url_fn: Callable[[str, str], str],
     ref: str,
+    *,
+    follow_pointers: bool = False,
 ) -> dict[str, tuple[str, str]]:
-    """Fetch each target at ref, diff against local, return {vendored: (content, diff)} for changed files."""
+    """Fetch each target at ref, diff against local, return {vendored: (content, diff)} for changed files.
+
+    With ``follow_pointers``, an upstream ``*.x.json`` that is a symlink (served
+    as the bare target filename rather than JSON) is followed once, and the
+    concrete schema is stored under the vendored ``.x`` name. This matches how
+    OMH publishes "latest 1.x" pointers under schema/omh/.
+    """
     diffs: dict[str, tuple[str, str]] = {}
     for vendored, upstream in targets:
-        url = url_fn(ref, upstream)
-        new_content = fetch(url)
+        new_content = fetch(url_fn(ref, upstream))
+        if follow_pointers and not new_content.lstrip().startswith("{"):
+            pointer = new_content.strip()
+            if "\n" in pointer or not pointer.endswith(".json"):
+                sys.exit(f"{vendored}: expected a '.x' pointer filename, got {pointer[:80]!r}")
+            new_content = fetch(url_fn(ref, pointer))
+            if not new_content.lstrip().startswith("{"):
+                sys.exit(f"{vendored}: pointer -> {pointer} did not resolve to a JSON schema")
         local_path = SCHEMAS_DIR / vendored
         old_content = local_path.read_text() if local_path.exists() else ""
         if old_content == new_content:
@@ -178,11 +216,11 @@ def main(argv: list[str] | None = None) -> int:
     print(f"openmhealth/schemas ref: {ref}")
     print()
 
-    diffs = _check_targets(
-        TARGETS,
-        lambda ref, upstream: f"{RAW_BASE}/{ref}/schema/omh/{upstream}",
-        ref,
-    )
+    def omh_url(ref: str, upstream: str) -> str:
+        return f"{RAW_BASE}/{ref}/schema/omh/{upstream}"
+
+    diffs = _check_targets(TARGETS, omh_url, ref)
+    diffs.update(_check_targets(OMH_UTILITY_TARGETS, omh_url, ref, follow_pointers=True))
 
     ieee_ref, ieee_was_explicit = _resolve_ref(args.ieee_ref, family="ieee")
     print()

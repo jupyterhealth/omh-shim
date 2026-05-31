@@ -18,6 +18,12 @@ _FILENAMES: dict[str, str] = {
     "omh:sleep-episode:1.1": "data/omh_sleep-episode_1-1.json",
     "omh:physical-activity:1.2": "data/omh_physical-activity_1-2.json",
     "omh:oxygen-saturation:2.0": "data/omh_oxygen-saturation_2-0.json",
+    # Clinical body schemas served to downstream consumers; no converters.
+    "omh:blood-glucose:4.0": "data/omh_blood-glucose_4-0.json",
+    "omh:blood-pressure:4.0": "data/omh_blood-pressure_4-0.json",
+    "omh:body-temperature:4.0": "data/omh_body-temperature_4-0.json",
+    "omh:respiratory-rate:2.0": "data/omh_respiratory-rate_2-0.json",
+    "omh:rr-interval:1.0": "data/omh_rr-interval_1-0.json",
     "ieee:header:1.0": "metadata/header-1.0.json",
 }
 

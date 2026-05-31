@@ -7,10 +7,18 @@ from typing import Any
 
 from omh_shim import _dispatch, _schema_loader, _validate
 from omh_shim._helpers import build_header
-from omh_shim._schema_loader import HEADER_SCHEMA_ID
+from omh_shim._schema_loader import HEADER_SCHEMA_ID, known_ids
+from omh_shim._schema_loader import load as load_schema
 from omh_shim.errors import ConversionError, ValidationError
 
-__all__ = ["convert", "ConversionError", "ValidationError", "SCHEMA_IDS"]
+__all__ = [
+    "convert",
+    "ConversionError",
+    "ValidationError",
+    "SCHEMA_IDS",
+    "known_ids",
+    "load_schema",
+]
 __version__ = "1.0.2"
 
 SCHEMA_IDS: Mapping[str, str] = MappingProxyType({

@@ -1,0 +1,35 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://w3id.org/ieee/ieee-1752-schema/temperature-unit-value.json",
+    "title": "Unit of Temperature and Value",
+    "type": "object",
+    "description": "This schema represents temperature (intensity of heat)",
+    "references": [
+        {
+            "description": "The SNOMED code represents Temperature (observable entity)",
+            "url": "http://purl.bioontology.org/ontology/SNOMEDCT/703421000"
+        }
+    ],
+    "allOf": [
+        {
+            "$ref": "unit-value-1.0.json"
+        },
+        {
+            "properties": {
+                "unit": {
+                    "references": [
+                        {
+                            "description": "The unit of measure of the element. Basic unit is degree Kelvin (K). Allowed values are drawn from the Temperature Units Common Synonyms (non-UCUM). The valid UCUM code is different for Celsius (C) and Fahrenheit ([degF]).",
+                            "url": "http://download.hl7.de/documents/ucum/ucumdata.html"
+                        }
+                    ],
+                    "enum": [
+                        "K",
+                        "F",
+                        "C"
+                    ]
+                }
+            }
+        }
+    ]
+}
