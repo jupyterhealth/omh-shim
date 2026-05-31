@@ -3,8 +3,7 @@ name: test
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
+  pull_request:  # run on PRs into any base branch (e.g. stacked feature branches)
 
 jobs:
   test:

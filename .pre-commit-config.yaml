@@ -1,0 +1,24 @@
+# Pre-commit hooks. Install once with `pre-commit install` (pre-commit is in the
+# dev extra). Mirrors the lint gate in CI (.github/workflows/test.yml); mypy and
+# pytest stay in CI because they need the full environment.
+#
+# Vendored schemas and test fixtures are byte-for-byte copies of upstream / fixed
+# expected output, so the whitespace/EOF fixers must not touch them — rewriting
+# them would diverge from canonical OMH/IEEE and break refresh-tool idempotency.
+exclude: '^(omh_shim/schemas/|tests/fixtures/)'
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.15
+    hooks:
+      - id: ruff
+        args: [--fix]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files

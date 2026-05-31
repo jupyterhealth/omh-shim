@@ -14,3 +14,22 @@ for a friendly and welcoming collaborative environment.
 If you need some help, feel free to ask on
 [Zulip](https://jupyter.zulipchat.com/#narrow/channel/469744-jupyterhub/)
 or [Discourse](https://discourse.jupyter.org/).
+
+## Development
+
+```bash
+pip install -e ".[dev]"   # install with dev tools
+pre-commit install        # enable the pre-commit hooks (runs ruff on commit)
+```
+
+The same checks run in CI:
+
+```bash
+ruff check .              # lint (also runs via pre-commit)
+mypy                      # strict type-check
+pytest                    # test suite
+```
+
+`pre-commit` runs only the fast lint/hygiene hooks; `mypy` and `pytest` stay in
+CI. The vendored schemas under `omh_shim/schemas/` are byte-for-byte upstream
+copies managed by `tools/refresh_schemas.py` — don't hand-edit or reformat them.
