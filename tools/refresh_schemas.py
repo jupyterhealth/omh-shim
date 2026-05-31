@@ -92,7 +92,7 @@ IEEE_UTILITY_TARGETS: list[tuple[str, str]] = [
 def read_pinned(pinned_path: Path, *, family: str) -> str:
     """Read the pinned ref for a schema family ('omh' or 'ieee') from JSON."""
     data = json.loads(pinned_path.read_text())
-    return data[family]["ref"]
+    return str(data[family]["ref"])
 
 
 def write_pinned(pinned_path: Path, *, family: str, new_ref: str, today: str) -> None:
@@ -194,7 +194,7 @@ def fetch(url: str) -> str:
     req = urllib.request.Request(url, headers={"User-Agent": "omh-shim-refresh/1.0"})
     try:
         with urllib.request.urlopen(req) as resp:
-            return resp.read().decode("utf-8")
+            return str(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         sys.exit(f"HTTP {e.code} fetching {url}")
 
