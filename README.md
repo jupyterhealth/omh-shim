@@ -105,6 +105,24 @@ Note: `heart_rate_variability` targets the local placeholder schema
 HRV schema as of 2026-04). The `local:` namespace is deliberate — downstream
 consumers should not assume OMH-standard interoperability for HRV records.
 
+## Served schemas without a converter
+
+omh-shim also vendors clinical OMH body schemas — blood pressure, blood
+glucose, body temperature, respiratory rate, and RR interval — that have no
+`convert()` converter. They exist so consumers can **serve and validate** OMH
+bodies offline from a single pinned source:
+
+```python
+from omh_shim import known_ids, load_schema
+
+"omh:blood-pressure:4.0" in known_ids()    # True
+schema = load_schema("omh:blood-glucose:4.0")  # vendored JSON schema, all $refs resolvable offline
+```
+
+These are tracked as `SERVED_NO_CONVERTER` in `tests/test_schema_coverage.py`
+(the authoritative list) and refreshed alongside the converter schemas by
+`tools/refresh_schemas.py`.
+
 ## Adding a new source
 
 See [`docs/adding-a-source.md`](docs/adding-a-source.md) for a step-by-step
