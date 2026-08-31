@@ -1,0 +1,9 @@
+{
+  "blood_glucose": {
+    "value": 110.0,
+    "unit": "mg/dL"
+  },
+  "effective_time_frame": {
+    "date_time": "2026-04-09T08:30:00Z"
+  }
+}

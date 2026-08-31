@@ -125,3 +125,12 @@ def test_ow_physical_activity_omits_optional_fields_when_absent():
     assert "distance" not in body
     assert "kcal_burned" not in body
     assert body["activity_name"] == "daily activity summary"
+
+
+def test_ow_blood_glucose_matches_expected():
+    """blood_glucose is ow_normalized-only, so it cannot join the SOURCES cross product."""
+    fixture_dir = FIXTURES / "ow_normalized"
+    sample = json.loads((fixture_dir / "blood_glucose_input.json").read_text())
+    expected = json.loads((fixture_dir / "blood_glucose_expected.json").read_text())
+    result = convert(source="ow_normalized", data_type="blood_glucose", sample=sample)
+    assert result["body"] == expected

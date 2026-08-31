@@ -43,8 +43,8 @@ TARGETS: list[tuple[str, str]] = [
     ("data/omh_sleep-episode_1-1.json", "sleep-episode-1.1.json"),
     ("data/omh_physical-activity_1-2.json", "physical-activity-1.2.json"),
     ("data/omh_oxygen-saturation_2-0.json", "oxygen-saturation-2.0.json"),
-    # Clinical body schemas (served for downstream consumers; no converters).
     ("data/omh_blood-glucose_4-0.json", "blood-glucose-4.0.json"),
+    # Clinical body schemas (served for downstream consumers; no converters).
     ("data/omh_blood-pressure_4-0.json", "blood-pressure-4.0.json"),
     ("data/omh_body-temperature_4-0.json", "body-temperature-4.0.json"),
     ("data/omh_body-weight_3-0.json", "body-weight-3.0.json"),

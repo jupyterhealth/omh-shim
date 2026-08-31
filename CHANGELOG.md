@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `ow_normalized.blood_glucose` converter, mapping an OW `TimeSeriesSample` with
+  `type=blood_glucose` to `omh:blood-glucose:4.0`. The vendored blood-glucose
+  schema moves out of the served-only set into `SCHEMA_IDS`. Oura does not
+  currently expose glucose through its API, so there is no `oura_raw`
+  counterpart; glucose reaches Open Wearables through the mobile SDK.
+
 ## [1.4.0] — 2026-06-21
 
 ### Added

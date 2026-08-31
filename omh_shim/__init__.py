@@ -19,7 +19,7 @@ __all__ = [
     "known_ids",
     "load_schema",
 ]
-__version__ = "1.4.0"
+__version__ = "1.5.0"
 
 SCHEMA_IDS: Mapping[str, str] = MappingProxyType({
     "heart_rate": "omh:heart-rate:2.0",
@@ -29,6 +29,7 @@ SCHEMA_IDS: Mapping[str, str] = MappingProxyType({
     "sleep_episode": "omh:sleep-episode:1.1",
     "physical_activity": "omh:physical-activity:1.2",
     "oxygen_saturation": "omh:oxygen-saturation:2.0",
+    "blood_glucose": "omh:blood-glucose:4.0",
 })
 """Read-only mapping of data_type -> schema id. ``heart_rate_variability``
 uses a ``local:`` namespace placeholder (OMH has no canonical HRV schema)."""
