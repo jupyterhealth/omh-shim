@@ -112,3 +112,11 @@ def oxygen_saturation(
         "oxygen_saturation": unit_value(sample["value"], "%"),
         "effective_time_frame": date_time_frame(sample["timestamp"]),
     }
+
+
+def blood_glucose(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any]:
+    """Input: OW TimeSeriesSample with type=blood_glucose."""
+    return {
+        "blood_glucose": unit_value(sample["value"], "mg/dL"),
+        "effective_time_frame": date_time_frame(sample["timestamp"]),
+    }

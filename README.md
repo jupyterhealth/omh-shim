@@ -96,7 +96,7 @@ fails schema validation.
 | `source` | `data_type` values |
 |---|---|
 | `oura_raw` | `heart_rate`, `heart_rate_variability`, `oxygen_saturation`, `step_count`, `sleep_duration`, `sleep_episode`, `physical_activity` |
-| `ow_normalized` | `heart_rate`, `heart_rate_variability`, `oxygen_saturation`, `step_count`, `sleep_duration`, `sleep_episode`, `physical_activity` |
+| `ow_normalized` | `heart_rate`, `heart_rate_variability`, `oxygen_saturation`, `step_count`, `sleep_duration`, `sleep_episode`, `physical_activity`, `blood_glucose` |
 
 Note: `heart_rate_variability` targets the local placeholder schema
 `local:heart-rate-variability:1.0` (Open mHealth has not published a canonical
@@ -105,17 +105,17 @@ consumers should not assume OMH-standard interoperability for HRV records.
 
 ## Served schemas without a converter
 
-omh-shim also vendors clinical OMH body schemas — blood pressure, blood
-glucose, body temperature, body weight, forced expiratory volume in 1 second
-(FEV1), forced vital capacity (FVC), respiratory rate, and RR interval — that
-have no `convert()` converter. They exist so consumers can **serve and validate** OMH
+omh-shim also vendors clinical OMH body schemas that have no `convert()`
+converter: blood pressure, body temperature, body weight, forced expiratory
+volume in 1 second (FEV1), forced vital capacity (FVC), respiratory rate, and
+RR interval. They exist so consumers can **serve and validate** OMH
 bodies offline from a single pinned source:
 
 ```python
 from omh_shim import known_ids, load_schema
 
 "omh:blood-pressure:4.0" in known_ids()    # True
-schema = load_schema("omh:blood-glucose:4.0")  # vendored JSON schema, all $refs resolvable offline
+schema = load_schema("omh:blood-pressure:4.0")  # vendored JSON schema, all $refs resolvable offline
 ```
 
 These are tracked as `SERVED_NO_CONVERTER` in `tests/test_schema_coverage.py`
