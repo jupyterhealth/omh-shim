@@ -17,10 +17,6 @@ from omh_shim._schema_loader import _FILENAMES
 # (Full transitive $ref coverage is asserted instance-independently by
 # test_served_schemas_refs_resolve_offline, not by these samples.) Keyed by id.
 SERVED_SAMPLES: dict[str, dict] = {
-    "omh:blood-glucose:4.0": {
-        "blood_glucose": {"value": 5.5, "unit": "mmol/L"},
-        "effective_time_frame": {"date_time": "2026-05-31T08:00:00Z"},
-    },
     "omh:blood-pressure:4.0": {
         "systolic_blood_pressure": {"value": 120, "unit": "mmHg"},
         "diastolic_blood_pressure": {"value": 80, "unit": "mmHg"},
@@ -65,6 +61,7 @@ SERVED_SAMPLES: dict[str, dict] = {
 }
 
 SCHEMA_STATUS: frozenset[str] = frozenset({
+    "omh_blood-glucose_4-0.json",
     "omh_heart-rate_2-0.json",
     "local_heart-rate-variability_1-0.json",
     "omh_oxygen-saturation_2-0.json",
@@ -78,7 +75,6 @@ SCHEMA_STATUS: frozenset[str] = frozenset({
 # serve and validate them. omh-shim has no wearable converter that produces
 # these, so they are intentionally absent from SCHEMA_STATUS and SCHEMA_IDS.
 SERVED_NO_CONVERTER: frozenset[str] = frozenset({
-    "omh_blood-glucose_4-0.json",
     "omh_blood-pressure_4-0.json",
     "omh_body-temperature_4-0.json",
     "omh_body-weight_3-0.json",
@@ -200,7 +196,7 @@ def test_served_schemas_refs_resolve_offline():
     this is the authoritative guarantee that the vendored closure is complete.
     """
     resolver = _validate._registry().resolver()
-    for sid in SERVED_SAMPLES:
+    for sid in {*SERVED_SAMPLES, *SCHEMA_IDS.values()}:
         seen: set[str] = set()
         stack: list[object] = [load_schema(sid)]
         while stack:

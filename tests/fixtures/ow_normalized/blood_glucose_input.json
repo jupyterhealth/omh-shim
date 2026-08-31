@@ -1,0 +1,11 @@
+{
+  "timestamp": "2026-04-09T08:30:00+00:00",
+  "zone_offset": "+00:00",
+  "type": "blood_glucose",
+  "value": 110,
+  "unit": "mg_dl",
+  "source": {
+    "source_name": "Stelo",
+    "device_model": "Stelo CGM"
+  }
+}

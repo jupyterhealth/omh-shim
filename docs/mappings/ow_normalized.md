@@ -141,3 +141,27 @@ This document covers the **body** content of each converter. For the IEEE 1752.1
 | `steps` | Mapped via `step_count` converter |
 | `active_minutes` | No OMH equivalent |
 | `source` | Device metadata, not health data |
+
+---
+
+## blood_glucose → `omh:blood-glucose:4.0`
+
+**OW shape:** `TimeSeriesSample` with `type=blood_glucose`
+
+| OW field | OMH field | Type | Notes |
+|---|---|---|---|
+| `value` | `blood_glucose.value` | float | mg/dL |
+| `timestamp` | `effective_time_frame.date_time` | ISO-8601 | Must include timezone offset |
+
+### Endpoint-specific handling
+
+- **No `oura_raw` counterpart.** Glucose reaches Open Wearables through the mobile SDK (Apple HealthKit / Android Health Connect). Oura does not currently expose glucose through its API.
+
+### Not mapped
+
+| OW field | Reason |
+|---|---|
+| `unit` | Always `"mg_dl"` in OW; OMH schema requires `"mg/dL"`, so it is hardcoded |
+| `type` | Discriminator for dispatch, not health data |
+| `zone_offset` | Informational; the timestamp already carries the offset |
+| `source` | Device metadata (source_name, device_model); not part of OMH blood-glucose schema |
