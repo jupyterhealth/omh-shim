@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] — 2026-09-13
+
 ### Added
 
 - Vendored `ieee:total-sleep-time:1.0` and `ieee:time-in-bed:1.0`, covering the
@@ -23,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   over the vendored IEEE schemas without noticing. It now sends a CLI-client UA,
   applies the socket timeout, and refuses any response that is not JSON (the `.x`
   pointer fetches excepted). Backported from the 2.0.0 branch.
+
+## [1.5.0] — 2026-08-31
+
+### Added
 
 - `ow_normalized.blood_glucose` converter, mapping an OW `TimeSeriesSample` with
   `type=blood_glucose` to `omh:blood-glucose:4.0`. The vendored blood-glucose
