@@ -47,6 +47,16 @@ SERVED_SAMPLES: dict[str, dict] = {
     "omh:rr-interval:1.0": {
         "rr_interval": {"value": 850, "unit": "ms"},
     },
+    "ieee:time-in-bed:1.0": {
+        "time_in_bed": {"value": 480, "unit": "min"},
+        "effective_time_frame": {
+            "time_interval": {
+                "start_date_time": "2026-05-31T23:00:00Z",
+                "end_date_time": "2026-06-01T07:00:00Z",
+            },
+        },
+        "is_main_sleep": True,
+    },
     "ieee:sleep-stage-summary:1.0": {
         "sleep_stage_summary": {
             "total_sleep_time": {"value": 480, "unit": "min"},
@@ -116,6 +126,7 @@ SERVED_NO_CONVERTER: frozenset[str] = frozenset({
     "omh_respiratory-rate_2-0.json",
     "omh_rr-interval_1-0.json",
     "ieee_sleep-stage-summary_1-0.json",
+    "ieee_time-in-bed_1-0.json",
     "omh_physical-activity_1-2.json",
     "omh_sleep-episode_1-1.json",
     "omh_step-count_3-0.json",

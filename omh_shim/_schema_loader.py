@@ -31,6 +31,7 @@ _FILENAMES: dict[str, str] = {
     "ieee:physical-activity:1.0": "data/ieee_physical-activity_1-0.json",
     "ieee:sleep-episode:1.0": "data/ieee_sleep-episode_1-0.json",
     "ieee:total-sleep-time:1.0": "data/ieee_total-sleep-time_1-0.json",
+    "ieee:time-in-bed:1.0": "data/ieee_time-in-bed_1-0.json",
     "ieee:header:1.0": "metadata/header-1.0.json",
 }
 

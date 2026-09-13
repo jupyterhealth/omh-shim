@@ -162,6 +162,21 @@ lands on `ieee:total-sleep-time:1.0`.
 
 ### Added
 
+- Vendored `ieee:total-sleep-time:1.0` and `ieee:time-in-bed:1.0`, covering the
+  two sleep codes JHE seeds that omh-shim did not serve. Both come from IEEE
+  1752.1: OMH deprecated its own `total-sleep-time` on 2026-06-18 with
+  `supersededBy` pointing at the IEEE schema of the same name, and OMH has no
+  time-in-bed schema at all. Both are served-only, with no converter, like the
+  other clinical bodies.
+
+### Fixed
+
+- `tools/refresh_schemas.py` sent a bare `omh-shim-refresh/1.0` User-Agent, which
+  IEEE's WAF answers with a `200` HTML challenge page. The tool wrote that HTML
+  over the vendored IEEE schemas without noticing. It now sends a CLI-client UA,
+  applies the socket timeout, and refuses any response that is not JSON (the `.x`
+  pointer fetches excepted). Backported from the 2.0.0 branch.
+
 - `ow_normalized.blood_glucose` converter, mapping an OW `TimeSeriesSample` with
   `type=blood_glucose` to `omh:blood-glucose:4.0`. The vendored blood-glucose
   schema moves out of the served-only set into `SCHEMA_IDS`. Oura does not
