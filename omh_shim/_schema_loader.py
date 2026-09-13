@@ -29,6 +29,8 @@ _FILENAMES: dict[str, str] = {
     "omh:rr-interval:1.0": "data/omh_rr-interval_1-0.json",
     # IEEE 1752 body schema (ieee: namespace) served to downstream consumers; no converter.
     "ieee:sleep-stage-summary:1.0": "data/ieee_sleep-stage-summary_1-0.json",
+    "ieee:total-sleep-time:1.0": "data/ieee_total-sleep-time_1-0.json",
+    "ieee:time-in-bed:1.0": "data/ieee_time-in-bed_1-0.json",
     "ieee:header:1.0": "metadata/header-1.0.json",
 }
 

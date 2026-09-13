@@ -33,6 +33,9 @@ SCHEMAS_DIR = REPO_ROOT / "omh_shim" / "schemas"
 PINNED_PATH = SCHEMAS_DIR / "_pinned.json"
 RAW_BASE = "https://raw.githubusercontent.com/openmhealth/schemas"
 IEEE_RAW_BASE = "https://opensource.ieee.org/omh/1752/-/raw"
+# IEEE's WAF allowlists CLI-client UA prefixes; a bare tool name gets an HTML challenge.
+USER_AGENT = "curl/8.7.1 omh-shim-refresh/1.0"
+URLOPEN_TIMEOUT = 30  # seconds; a hung socket must not block until the job timeout
 
 # Top-level schemas to refresh. The local HRV placeholder is excluded.
 TARGETS: list[tuple[str, str]] = [
@@ -106,6 +109,8 @@ IEEE_UTILITY_TARGETS: list[tuple[str, str]] = [
 IEEE_DATA_TARGETS: list[tuple[str, str]] = [
     # (vendored path under SCHEMAS_DIR, upstream path under schemas/)
     ("data/ieee_sleep-stage-summary_1-0.json", "sleep/sleep-stage-summary-1.0.json"),
+    ("data/ieee_total-sleep-time_1-0.json", "sleep/total-sleep-time-1.0.json"),
+    ("data/ieee_time-in-bed_1-0.json", "sleep/time-in-bed-1.0.json"),
 ]
 
 
@@ -181,7 +186,7 @@ def _check_targets(
     """
     diffs: dict[str, tuple[str, str]] = {}
     for vendored, upstream in targets:
-        new_content = fetch(url_fn(ref, upstream))
+        new_content = fetch(url_fn(ref, upstream), expect_json=not follow_pointers)
         if follow_pointers and not new_content.lstrip().startswith("{"):
             pointer = new_content.strip()
             if "\n" in pointer or not pointer.endswith(".json"):
@@ -208,15 +213,20 @@ def _check_targets(
     return diffs
 
 
-def fetch(url: str) -> str:
-    # Some hosts (e.g. opensource.ieee.org GitLab) reject the default Python
-    # User-Agent with HTTP 418, so set an explicit one.
-    req = urllib.request.Request(url, headers={"User-Agent": "omh-shim-refresh/1.0"})
+def fetch(url: str, *, expect_json: bool = True) -> str:
+    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     try:
-        with urllib.request.urlopen(req) as resp:
-            return str(resp.read().decode("utf-8"))
+        with urllib.request.urlopen(req, timeout=URLOPEN_TIMEOUT) as resp:
+            text = str(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         sys.exit(f"HTTP {e.code} fetching {url}")
+    if expect_json:
+        try:
+            json.loads(text)
+        except json.JSONDecodeError:
+            # A WAF challenge answers 200 with HTML; refuse to vendor it as a schema.
+            sys.exit(f"Non-JSON response from {url}: {text[:200]!r}")
+    return text
 
 
 def main(argv: list[str] | None = None) -> int:
