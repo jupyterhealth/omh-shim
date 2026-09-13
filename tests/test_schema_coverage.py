@@ -58,6 +58,25 @@ SERVED_SAMPLES: dict[str, dict] = {
             },
         },
     },
+    "ieee:total-sleep-time:1.0": {
+        "total_sleep_time": {"value": 465, "unit": "min"},
+        "effective_time_frame": {
+            "time_interval": {
+                "start_date_time": "2026-05-31T23:00:00Z",
+                "end_date_time": "2026-06-01T07:00:00Z",
+            },
+        },
+    },
+    "ieee:time-in-bed:1.0": {
+        "time_in_bed": {"value": 480, "unit": "min"},
+        "effective_time_frame": {
+            "time_interval": {
+                "start_date_time": "2026-05-31T23:00:00Z",
+                "end_date_time": "2026-06-01T07:00:00Z",
+            },
+        },
+        "is_main_sleep": True,
+    },
 }
 
 SCHEMA_STATUS: frozenset[str] = frozenset({
@@ -83,6 +102,8 @@ SERVED_NO_CONVERTER: frozenset[str] = frozenset({
     "omh_respiratory-rate_2-0.json",
     "omh_rr-interval_1-0.json",
     "ieee_sleep-stage-summary_1-0.json",
+    "ieee_total-sleep-time_1-0.json",
+    "ieee_time-in-bed_1-0.json",
 })
 
 NOT_RELEVANT: frozenset[str] = frozenset()
