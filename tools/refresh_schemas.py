@@ -5,8 +5,7 @@ By default the script verifies the vendored body + utility (OMH) and
 envelope/utility (IEEE 1752.1) schemas against the refs recorded in
 ``omh_shim/schemas/_pinned.json``. Pass ``--omh-ref`` and/or ``--ieee-ref``
 to fetch a different ref for either source; when changes are confirmed, the
-pinned ref for any family passed explicitly is updated automatically. The
-local HRV placeholder is intentionally excluded.
+pinned ref for any family passed explicitly is updated automatically.
 
 Run from the repo root::
 
@@ -37,7 +36,7 @@ IEEE_RAW_BASE = "https://opensource.ieee.org/omh/1752/-/raw"
 USER_AGENT = "curl/8.7.1 omh-shim-refresh/1.0"
 URLOPEN_TIMEOUT = 30  # seconds; a hung socket must not block until the job timeout
 
-# Top-level schemas to refresh. The local HRV placeholder is excluded.
+# Top-level schemas to refresh.
 TARGETS: list[tuple[str, str]] = [
     # (vendored filename, upstream path within schema/omh/)
     ("data/omh_heart-rate_2-0.json", "heart-rate-2.0.json"),
@@ -95,20 +94,21 @@ IEEE_UTILITY_TARGETS: list[tuple[str, str]] = [
     ("utility/temperature-unit-value-1.0.json", "utility/temperature-unit-value-1.0.json"),
     ("utility/body-posture-1.0.json", "utility/body-posture-1.0.json"),
     # IEEE utility refs transitively required by the sleep-stage-summary body.
-    # NB: descriptive-statistic-1.0.json is intentionally NOT tracked here — the
-    # vendored copy under that bare filename is the OMH (draft-04) variant that
-    # OMH bodies depend on, and the flat bare-filename registry can hold only one
-    # schema per filename. sleep-stage-summary's relative ref to it resolves to
-    # that existing file; tracking the IEEE variant would overwrite and break OMH.
+    # Nested under utility/ieee/ so the IEEE w3id URI serves IEEE's 17-value enum, not OMH's 7-value one.
+    ("utility/ieee/descriptive-statistic-1.0.json", "utility/descriptive-statistic-1.0.json"),
     ("utility/percent-unit-value-1.0.json", "utility/percent-unit-value-1.0.json"),
     ("utility/descriptive-statistic-denominator-1.0.json", "utility/descriptive-statistic-denominator-1.0.json"),
+    ("utility/length-unit-value-1.0.json", "utility/length-unit-value-1.0.json"),
+    ("utility/kcal-unit-value-1.0.json", "utility/kcal-unit-value-1.0.json"),
+    ("utility/speed-unit-value-1.0.json", "utility/speed-unit-value-1.0.json"),
 ]
 
-# IEEE 1752 body schemas served downstream (e.g. seeded as JHE CodeableConcepts)
-# with no omh-shim converter. Pulled from opensource.ieee.org/omh/1752.
+# IEEE 1752 body schemas from opensource.ieee.org/omh/1752; only sleep-stage-summary has no converter.
 IEEE_DATA_TARGETS: list[tuple[str, str]] = [
     # (vendored path under SCHEMAS_DIR, upstream path under schemas/)
     ("data/ieee_sleep-stage-summary_1-0.json", "sleep/sleep-stage-summary-1.0.json"),
+    ("data/ieee_physical-activity_1-0.json", "physical_activity/physical-activity-1.0.json"),
+    ("data/ieee_sleep-episode_1-0.json", "sleep/sleep-episode-1.0.json"),
     ("data/ieee_total-sleep-time_1-0.json", "sleep/total-sleep-time-1.0.json"),
     ("data/ieee_time-in-bed_1-0.json", "sleep/time-in-bed-1.0.json"),
 ]
@@ -149,6 +149,11 @@ def _resolve_ref(arg_ref: str | None, family: str) -> tuple[str, bool]:
             f"No '{family}' ref recorded in {display_path}. "
             f"Pass --{family}-ref <tag-or-sha> or record one."
         ) from None
+
+
+def ieee_url(ref: str, upstream: str) -> str:
+    """Build a raw-file URL for an IEEE schema path under schemas/."""
+    return f"{IEEE_RAW_BASE}/{ref}/schemas/{upstream}"
 
 
 def walk_refs(node: object) -> set[str]:
@@ -259,7 +264,7 @@ def main(argv: list[str] | None = None) -> int:
 
     ieee_diffs = _check_targets(
         IEEE_METADATA_TARGETS + IEEE_UTILITY_TARGETS + IEEE_DATA_TARGETS,
-        lambda ref, upstream: f"{IEEE_RAW_BASE}/{ref}/schemas/{upstream}",
+        ieee_url,
         ieee_ref,
     )
 
@@ -275,7 +280,9 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     for vendored, (new_content, _diff) in all_diffs.items():
-        (SCHEMAS_DIR / vendored).write_text(new_content)
+        out_path = SCHEMAS_DIR / vendored
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(new_content)
         print(f"  wrote {vendored}")
 
     if ref_was_explicit:

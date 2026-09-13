@@ -17,15 +17,11 @@ class _Converter(Protocol):
 
 REGISTRY: Mapping[tuple[str, str], _Converter] = MappingProxyType({
     ("oura_raw", "heart_rate"):              oura_raw.heart_rate,
-    ("oura_raw", "heart_rate_variability"):  oura_raw.heart_rate_variability,
-    ("oura_raw", "step_count"):              oura_raw.step_count,
     ("oura_raw", "sleep_duration"):          oura_raw.sleep_duration,
     ("oura_raw", "sleep_episode"):           oura_raw.sleep_episode,
     ("oura_raw", "physical_activity"):       oura_raw.physical_activity,
     ("oura_raw", "oxygen_saturation"):       oura_raw.oxygen_saturation,
     ("ow_normalized", "heart_rate"):             ow_normalized.heart_rate,
-    ("ow_normalized", "heart_rate_variability"): ow_normalized.heart_rate_variability,
-    ("ow_normalized", "step_count"):             ow_normalized.step_count,
     ("ow_normalized", "sleep_duration"):         ow_normalized.sleep_duration,
     ("ow_normalized", "sleep_episode"):          ow_normalized.sleep_episode,
     ("ow_normalized", "physical_activity"):      ow_normalized.physical_activity,

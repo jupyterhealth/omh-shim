@@ -1,5 +1,5 @@
 {
-  "sleep_duration": {"value": 25920, "unit": "sec"},
+  "total_sleep_time": {"value": 25920, "unit": "sec"},
   "effective_time_frame": {
     "time_interval": {
       "start_date_time": "2026-04-09T00:00:00Z",

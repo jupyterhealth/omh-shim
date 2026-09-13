@@ -103,10 +103,8 @@ def test_convert_wraps_type_error():
 
 
 DAILY_CASES = [
-    ("oura_raw", "step_count", {"day": "2026-04-09", "steps": 100}),
     ("oura_raw", "physical_activity", {"day": "2026-04-09"}),
     ("oura_raw", "oxygen_saturation", {"day": "2026-04-09", "spo2_percentage": {"average": 96.5}}),
-    ("ow_normalized", "step_count", {"date": "2026-04-09", "steps": 100}),
     ("ow_normalized", "physical_activity", {"date": "2026-04-09"}),
     ("ow_normalized", "sleep_duration", {"date": "2026-04-09", "sleep_total_duration_minutes": 480}),
 ]
@@ -140,19 +138,14 @@ def test_daily_types_respect_non_utc_tz(source, data_type, sample):
 
 NAIVE_CASES = [
     ("oura_raw", "heart_rate", {"bpm": 72, "timestamp": "2026-04-09T08:30:00"}),
-    ("oura_raw", "heart_rate_variability", {"rmssd": 45.0, "timestamp": "2026-04-09T08:30:00"}),
     ("oura_raw", "sleep_duration", {"total_sleep_duration": 27000,
      "bedtime_start": "2026-04-09T22:00:00", "bedtime_end": "2026-04-10T06:00:00"}),
     ("oura_raw", "sleep_episode", {"bedtime_start": "2026-04-09T22:00:00",
      "bedtime_end": "2026-04-10T06:00:00"}),
     ("ow_normalized", "heart_rate", {"timestamp": "2026-04-09T08:30:00",
      "type": "heart_rate", "value": 72}),
-    ("ow_normalized", "heart_rate_variability", {"timestamp": "2026-04-09T08:30:00",
-     "type": "heart_rate_variability", "value": 45.0}),
     ("ow_normalized", "sleep_episode", {"bedtime_start": "2026-04-09T22:00:00",
      "bedtime_end": "2026-04-10T06:00:00"}),
-    ("ow_normalized", "step_count", {"timestamp": "2026-04-09T08:30:00",
-     "type": "steps", "value": 10}),
 ]
 
 
@@ -160,22 +153,6 @@ NAIVE_CASES = [
 def test_rejects_naive_datetime(source, data_type, sample):
     with pytest.raises(ConversionError, match="timezone"):
         convert(source=source, data_type=data_type, sample=sample)
-
-
-# --- converters raise ConversionError directly (not raw KeyError) ---
-
-
-def test_oura_hrv_rejects_normalized_score_directly():
-    from omh_shim.sources import oura_raw
-    with pytest.raises(ConversionError, match="rmssd"):
-        oura_raw.heart_rate_variability(
-            {"day": "2026-04-09", "contributors": {"hrv_balance": 70}}, tz=None)
-
-
-def test_ow_step_count_rejects_unknown_shape_directly():
-    from omh_shim.sources import ow_normalized
-    with pytest.raises(ConversionError):
-        ow_normalized.step_count({"foo": "bar"}, tz=UTC)
 
 
 # --- schema validation ---
@@ -202,8 +179,20 @@ def test_all_schemas_load():
         assert isinstance(load(schema_id), dict)
 
 
-def test_hrv_schema_is_local_namespace():
-    assert SCHEMA_IDS["heart_rate_variability"].startswith("local:")
+def test_hrv_data_type_removed():
+    """Neither IEEE nor OMH defines HRV, so omh-shim does not convert it."""
+    assert "heart_rate_variability" not in SCHEMA_IDS
+    with pytest.raises(ConversionError, match="No converter"):
+        convert(
+            source="oura_raw", data_type="heart_rate_variability",
+            sample={"rmssd": 42.5, "timestamp": "2026-04-09T08:00:00Z"},
+        )
+
+
+def test_no_local_namespace_schemas():
+    """No hand-written schema may be served under any namespace."""
+    from omh_shim import known_ids
+    assert not [sid for sid in known_ids() if sid.startswith("local:")]
 
 
 # --- numeric precision ---
@@ -220,7 +209,7 @@ def test_ow_sleep_duration_fractional_minutes():
     result = convert(source="ow_normalized", data_type="sleep_duration",
                      sample={"date": "2026-04-09", "sleep_total_duration_minutes": 32.5},
                      tz=UTC)
-    assert result["body"]["sleep_duration"]["value"] == 1950
+    assert result["body"]["total_sleep_time"]["value"] == 1950
 
 
 # --- validate kwarg ---
@@ -305,16 +294,6 @@ def test_header_external_datasheets_oura_raw_implicit_device():
     assert result["header"]["external_datasheets"] == [
         {"datasheet_type": "manufacturer", "datasheet_reference": "Oura Ring"},
     ]
-
-
-def test_header_local_schema_namespace():
-    """HRV uses the local: namespace — header.schema_id must reflect that."""
-    result = convert(
-        source="oura_raw", data_type="heart_rate_variability",
-        sample={"rmssd": 42.5, "timestamp": "2026-04-09T08:00:00Z"},
-    )
-    sid = result["header"]["schema_id"]
-    assert sid == {"namespace": "local", "name": "heart-rate-variability", "version": "1.0"}
 
 
 def test_validate_raises_on_remote_ref():
@@ -406,3 +385,228 @@ def test_validate_false_skips(monkeypatch):
                     "type": "heart_rate", "value": 72},
             validate=False)
     assert len(call_log) == 0, "validate_output should not be called when validate=False"
+
+
+# --- IEEE-first resolution ---
+
+
+def test_resolver_prefers_ieee_when_vendored():
+    """Any data type with a vendored IEEE candidate must resolve to it."""
+    from omh_shim import _SCHEMA_CANDIDATES, known_ids
+    vendored = known_ids()
+    for data_type, candidates in _SCHEMA_CANDIDATES.items():
+        if any(c.startswith("ieee:") and c in vendored for c in candidates):
+            assert SCHEMA_IDS[data_type].startswith("ieee:"), data_type
+
+
+def test_flipped_types_resolve_to_ieee():
+    assert SCHEMA_IDS["physical_activity"] == "ieee:physical-activity:1.0"
+    assert SCHEMA_IDS["sleep_episode"] == "ieee:sleep-episode:1.0"
+    assert SCHEMA_IDS["sleep_duration"] == "ieee:total-sleep-time:1.0"
+
+
+def test_types_without_ieee_stay_on_omh():
+    """No IEEE body exists for these measures, so OMH is the correct fallback."""
+    for data_type in ("heart_rate", "oxygen_saturation", "blood_glucose"):
+        assert SCHEMA_IDS[data_type].startswith("omh:"), data_type
+
+
+def test_no_custom_namespaces_in_candidates():
+    from omh_shim import _NAMESPACE_PRECEDENCE, _SCHEMA_CANDIDATES
+    for candidates in _SCHEMA_CANDIDATES.values():
+        for candidate in candidates:
+            assert candidate.split(":")[0] in _NAMESPACE_PRECEDENCE, candidate
+
+
+def test_candidate_names_match_data_type_or_declared_successor():
+    """No inference: an off-name candidate must be the successor OMH itself declared."""
+    from omh_shim import _SCHEMA_CANDIDATES, _successor_name, known_ids, load_schema
+    for data_type, candidates in _SCHEMA_CANDIDATES.items():
+        expected = data_type.replace("_", "-")
+        for candidate in candidates:
+            name = candidate.split(":")[1]
+            if name == expected:
+                continue
+            deprecated = [
+                sid for sid in known_ids()
+                if sid.startswith("omh:") and sid.split(":")[1] == expected
+            ]
+            assert deprecated, candidate
+            superseded_by = load_schema(deprecated[0])["deprecation"]["supersededBy"]
+            assert name == _successor_name(superseded_by), candidate
+
+
+def test_resolver_ignores_declaration_order(monkeypatch):
+    """Precedence comes from the namespace, not from how the table is typed.
+
+    Every real OMH schema with an IEEE counterpart is now deprecated, so the
+    non-deprecated pair this property needs has to be faked.
+    """
+    from omh_shim import _resolve, _schema_loader
+    fake = "ieee:heart-rate:1.0"
+    real_load = _schema_loader.load
+    real_known = _schema_loader.known_ids()
+    monkeypatch.setattr(_schema_loader, "known_ids", lambda: real_known | {fake})
+    monkeypatch.setattr(
+        _schema_loader, "load", lambda sid: {} if sid == fake else real_load(sid)
+    )
+    assert _resolve("heart_rate", ("omh:heart-rate:2.0", fake)) == fake
+
+
+def test_resolver_rejects_unknown_namespace():
+    from omh_shim import _resolve
+    with pytest.raises(RuntimeError, match="namespace"):
+        _resolve("heart_rate", ("local:heart-rate:1.0",))
+
+
+def test_resolver_rejects_unresolvable_type():
+    from omh_shim import _resolve
+    with pytest.raises(RuntimeError, match="no candidate is vendored"):
+        _resolve("heart_rate", ("ieee:heart-rate:1.0",))
+
+
+def test_resolver_rejects_malformed_candidate():
+    from omh_shim import _resolve
+    with pytest.raises(RuntimeError, match="malformed"):
+        _resolve("sleep_episode", ("ieee:sleep-episode",))
+
+
+def test_resolver_rejects_duplicate_namespace():
+    """Two candidates in one namespace would tie, and the tie breaks lexicographically —
+    silently preferring the lower version."""
+    from omh_shim import _resolve
+    with pytest.raises(RuntimeError, match="more than once"):
+        _resolve("sleep_episode", ("ieee:sleep-episode:2.0", "ieee:sleep-episode:1.0"))
+
+
+def test_resolver_rejects_deprecated_candidate():
+    """OMH deprecated sleep-episode 1.1 in favor of IEEE; it may not be a candidate."""
+    from omh_shim import _resolve
+    with pytest.raises(RuntimeError, match="deprecated"):
+        _resolve("sleep_episode", ("omh:sleep-episode:1.1",))
+
+
+def test_resolver_accepts_declared_successor():
+    from omh_shim import _resolve
+    assert _resolve("sleep_duration", ("ieee:total-sleep-time:1.0",)) == "ieee:total-sleep-time:1.0"
+
+
+def test_resolver_rejects_undeclared_successor_for_a_vendored_undeprecated_measure():
+    """omh:heart-rate:2.0 is vendored and healthy, so it declares no successor at all."""
+    from omh_shim import _resolve
+    with pytest.raises(RuntimeError, match="not deprecated and declares no successor"):
+        _resolve("heart_rate", ("ieee:total-sleep-time:1.0",))
+
+
+def test_resolver_distinguishes_an_unvendored_measure_from_an_undeprecated_one():
+    """No omh:sleep-stage-summary is vendored — a different diagnosis from the test above."""
+    from omh_shim import _resolve
+    with pytest.raises(RuntimeError, match="no Open mHealth schema for 'sleep-stage-summary'"):
+        _resolve("sleep_stage_summary", ("ieee:total-sleep-time:1.0",))
+
+
+def test_resolver_rejects_a_candidate_that_is_not_the_declared_successor():
+    """sleep-duration's declared successor is total-sleep-time, not sleep-episode."""
+    from omh_shim import _resolve
+    with pytest.raises(RuntimeError) as excinfo:
+        _resolve("sleep_duration", ("ieee:sleep-episode:1.0",))
+    message = str(excinfo.value)
+    assert "total-sleep-time" in message
+    assert "sleep-episode" in message
+
+
+def test_declared_successor_prefers_the_deprecated_schema_and_is_order_independent(monkeypatch):
+    """Two vendored versions of one measure must not let PYTHONHASHSEED pick the answer."""
+    from omh_shim import _declared_successor, _schema_loader
+    real_known = _schema_loader.known_ids()
+    fresh, deprecated = "omh:sleep-duration:1.0", "omh:sleep-duration:2.0"
+    monkeypatch.setattr(_schema_loader, "known_ids", lambda: real_known | {fresh})
+    monkeypatch.setattr(
+        _schema_loader, "load",
+        lambda sid: {} if sid == fresh else {
+            "deprecation": {"supersededBy": "omh:total-sleep-time:1.x"}
+        } if sid == deprecated else {},
+    )
+    # fresh sorts first; a first-match-wins lookup would answer None here.
+    assert _declared_successor("sleep-duration") == "total-sleep-time"
+
+
+def test_declared_successor_raises_when_supersededby_is_missing(monkeypatch):
+    from omh_shim import _declared_successor, _schema_loader
+    monkeypatch.setattr(
+        _schema_loader, "load",
+        lambda sid: {"deprecation": {"reason": "retired"}} if sid == "omh:sleep-duration:2.0" else {},
+    )
+    with pytest.raises(RuntimeError, match="omh:sleep-duration:2.0.*supersededBy"):
+        _declared_successor("sleep-duration")
+
+
+@pytest.mark.parametrize("superseded_by,expected", [
+    ("https://w3id.org/ieee/ieee-1752-schema/physical-activity.json", "physical-activity"),
+    ("omh:total-sleep-time:1.x", "total-sleep-time"),
+])
+def test_successor_name_parses_both_formats(superseded_by, expected):
+    from omh_shim import _successor_name
+    assert _successor_name(superseded_by) == expected
+
+
+def test_no_resolved_schema_is_deprecated():
+    """The whole point: nothing we emit carries a publisher deprecation."""
+    from omh_shim import load_schema
+    for schema_id in SCHEMA_IDS.values():
+        assert "deprecation" not in load_schema(schema_id), schema_id
+
+
+def test_step_count_data_type_removed():
+    assert "step_count" not in SCHEMA_IDS
+    with pytest.raises(ConversionError, match="No converter"):
+        convert(source="oura_raw", data_type="step_count", sample={"day": "2026-04-09", "steps": 1}, tz=UTC)
+
+
+@pytest.mark.parametrize("source,sample", [
+    ("oura_raw", {"day": "2026-04-09", "steps": 8432}),
+    ("ow_normalized", {"date": "2026-04-09", "steps": 8432}),
+])
+def test_physical_activity_folds_steps(source, sample):
+    body = convert(source=source, data_type="physical_activity", sample=sample, tz=UTC)["body"]
+    assert body["base_movement_quantity"] == {"value": 8432, "unit": "steps"}
+    assert "step_count" not in body
+
+
+def test_sleep_duration_emits_ieee_field_name():
+    body = convert(
+        source="oura_raw", data_type="sleep_duration",
+        sample={"bedtime_start": "2026-04-09T22:30:00Z", "bedtime_end": "2026-04-10T06:45:00Z",
+                "total_sleep_duration": 27600},
+    )["body"]
+    assert body["total_sleep_time"] == {"value": 27600, "unit": "sec"}
+    assert "sleep_duration" not in body
+
+
+# --- IEEE sleep-episode field naming ---
+
+
+@pytest.mark.parametrize("source,sample", [
+    ("oura_raw", {"bedtime_start": "2026-04-09T22:30:00Z",
+                  "bedtime_end": "2026-04-10T06:45:00Z", "efficiency": 92.5}),
+    ("ow_normalized", {"bedtime_start": "2026-04-09T22:30:00Z",
+                       "bedtime_end": "2026-04-10T06:45:00Z",
+                       "sleep_efficiency_score": 92.5}),
+])
+def test_sleep_episode_uses_ieee_efficiency_field(source, sample):
+    """IEEE has no additionalProperties:false, so validation alone can't catch
+    the old field name — consumers would silently drop it."""
+    body = convert(source=source, data_type="sleep_episode", sample=sample)["body"]
+    assert body["sleep_efficiency_percentage"] == {"value": 92.5, "unit": "%"}
+    assert "sleep_maintenance_efficiency_percentage" not in body
+
+
+def test_sleep_episode_header_uses_ieee_namespace():
+    result = convert(
+        source="oura_raw", data_type="sleep_episode",
+        sample={"bedtime_start": "2026-04-09T22:30:00Z",
+                "bedtime_end": "2026-04-10T06:45:00Z"},
+    )
+    assert result["header"]["schema_id"] == {
+        "namespace": "ieee", "name": "sleep-episode", "version": "1.0",
+    }

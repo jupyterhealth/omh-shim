@@ -33,6 +33,10 @@ pytest                    # test suite
 `pre-commit` runs only the fast lint/hygiene hooks; `mypy` and `pytest` stay in
 CI. The vendored schemas under `omh_shim/schemas/` are byte-for-byte upstream
 copies managed by `tools/refresh_schemas.py` — don't hand-edit or reformat them.
+`tools/check_schema_adoption.py` is the companion check: it reports Open mHealth
+deprecations and newly-published IEEE measures that would invalidate a resolved
+schema id. Both need an editable install (`pip install -e .`) and run from the repo
+root; the weekly `schema-drift-check` workflow runs both.
 
 ## Versioning & releases
 

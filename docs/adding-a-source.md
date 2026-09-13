@@ -28,7 +28,7 @@ def heart_rate(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any
 ```
 
 - **`sample`** — one record from the vendor's API (a dict).
-- **`tz`** — timezone for daily data types (`step_count`, `physical_activity`,
+- **`tz`** — timezone for daily data types (`physical_activity`,
   `sleep_duration`, `oxygen_saturation`). Timestamp-based types can ignore it.
 - **Returns** — the OMH body dict (not the envelope). The envelope (header +
   body) is built automatically by `convert()`.

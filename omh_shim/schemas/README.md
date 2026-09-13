@@ -2,7 +2,7 @@
 
 Schemas are vendored from two upstream sources:
 
-- **OMH:** `https://github.com/openmhealth/schemas` — body schemas (heart-rate, step-count, etc.)
+- **OMH:** `https://github.com/openmhealth/schemas` — body schemas (heart-rate, blood-glucose, etc.)
 - **IEEE 1752.1:** `https://opensource.ieee.org/omh/1752` — envelope schemas (header, data-point, schema-id) and shared utility refs
 
 Pinned versions are recorded in [`_pinned.json`](_pinned.json). Don't edit that file by hand — use `tools/refresh_schemas.py` (see below).
@@ -12,8 +12,11 @@ Pinned versions are recorded in [`_pinned.json`](_pinned.json). Don't edit that 
 ```
 omh_shim/schemas/
   metadata/     # IEEE 1752.1 envelope (data-point, data-series, header, schema-id)
-  data/         # OMH body schemas + local HRV placeholder
+  data/         # IEEE and OMH body schemas
   utility/      # Shared $ref deps (time-frame, unit-value, descriptive-statistic, ...)
+  utility/ieee/ # IEEE's own variant of a utility schema OMH also publishes under the same
+                # filename, served at the w3id URI an IEEE body's $id re-bases onto
+                # (currently descriptive-statistic-1.0.json, whose IEEE enum is wider)
 ```
 
 Some `data/` body schemas (e.g. the clinical `blood-pressure`, `respiratory-rate`)

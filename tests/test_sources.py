@@ -20,9 +20,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 DATA_TYPES = [
     "heart_rate",
-    "heart_rate_variability",
     "oxygen_saturation",
-    "step_count",
     "sleep_duration",
     "sleep_episode",
     "physical_activity",
@@ -45,13 +43,6 @@ def test_converter_matches_expected(source, data_type):
 # --- source-specific edge cases ---
 
 
-def test_oura_hrv_rejects_normalized_score():
-    """Oura's daily_readiness contributors.hrv_balance is a 0-100 score, not ms."""
-    sample = {"day": "2026-04-09", "score": 85, "contributors": {"hrv_balance": 70}}
-    with pytest.raises(ConversionError, match="rmssd"):
-        convert(source="oura_raw", data_type="heart_rate_variability", sample=sample)
-
-
 def test_oura_sleep_episode_nap_is_not_main_sleep():
     sample = {
         "id": "nap-1",
@@ -71,34 +62,10 @@ def test_oura_physical_activity_omits_optional_fields_when_absent():
         sample={"day": "2026-04-09"},
         tz=UTC,
     )
-    assert "distance" not in result
-    assert "kcal_burned" not in result
-
-
-def test_ow_step_count_accepts_timeseries_shape():
-    """TimeSeriesSample with type=steps — 1-minute interval ending at timestamp."""
-    sample = {
-        "timestamp": "2026-04-09T08:30:00+00:00",
-        "type": "steps",
-        "value": 12,
-        "unit": "steps",
-    }
-    result = convert(source="ow_normalized", data_type="step_count", sample=sample)
     body = result["body"]
-    assert body["step_count"] == {"value": 12, "unit": "steps"}
-    interval = body["effective_time_frame"]["time_interval"]
-    assert interval["start_date_time"] == "2026-04-09T08:29:00Z"
-    assert interval["end_date_time"] == "2026-04-09T08:30:00Z"
-
-
-def test_ow_step_count_rejects_unknown_shape():
-    with pytest.raises(ConversionError):
-        convert(
-            source="ow_normalized",
-            data_type="step_count",
-            sample={"foo": "bar"},
-            tz=UTC,
-        )
+    assert "distance" not in body
+    assert "kcal_burned" not in body
+    assert "base_movement_quantity" not in body
 
 
 def test_oura_oxygen_saturation_rejects_missing_spo2_percentage():
@@ -118,12 +85,13 @@ def test_ow_physical_activity_omits_optional_fields_when_absent():
     result = convert(
         source="ow_normalized",
         data_type="physical_activity",
-        sample={"date": "2026-04-09", "steps": 100},
+        sample={"date": "2026-04-09"},
         tz=UTC,
     )
     body = result["body"]
     assert "distance" not in body
     assert "kcal_burned" not in body
+    assert "base_movement_quantity" not in body
     assert body["activity_name"] == "daily activity summary"
 
 

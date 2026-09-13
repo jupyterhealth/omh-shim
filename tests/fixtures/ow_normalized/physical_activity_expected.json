@@ -7,5 +7,6 @@
     }
   },
   "distance": {"value": 6240.5, "unit": "m"},
-  "kcal_burned": {"value": 342.5, "unit": "kcal"}
+  "kcal_burned": {"value": 342.5, "unit": "kcal"},
+  "base_movement_quantity": {"value": 8432, "unit": "steps"}
 }

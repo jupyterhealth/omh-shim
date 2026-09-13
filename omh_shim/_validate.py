@@ -49,6 +49,16 @@ def _registry() -> Registry:
     - canonical OMH w3id URL (utility/ schemas, since OMH bodies $ref utility
       schemas using various URI forms)
 
+    ``utility/ieee/`` holds IEEE variants of utility schemas whose filename
+    collides with an Open mHealth one. They are registered under the IEEE w3id
+    URL only, and last, so they override the generic registration there while
+    the bare filename and the OMH w3id URL keep serving the OMH variant. This
+    is the split the two families' ``$id``s already imply: a legacy OMH body
+    carries no ``$id``, so its relative ``$ref``s resolve to the bare filename,
+    while a newer OMH body carries an OMH ``$id`` and ``$ref``s IEEE's utility
+    schemas by absolute URL, and an IEEE body's ``$id`` re-bases its relative
+    ``$ref``s onto the w3id URL.
+
     Mirrors JHE's referencing.Registry setup in core/utils.py.
     """
     ieee_base = "https://w3id.org/ieee/ieee-1752-schema/"
@@ -60,6 +70,7 @@ def _registry() -> Registry:
         sub = schemas_pkg.joinpath(subdir)
         if not sub.is_dir():
             continue
+        # The .json check also skips nested directories such as utility/ieee/.
         for entry in sub.iterdir():
             name = entry.name
             if not name.endswith(".json"):
@@ -74,6 +85,18 @@ def _registry() -> Registry:
                 resources.append((ieee_base + name, res))
             if subdir == "utility":
                 resources.append((omh_base + name, res))
+
+    ieee_utility = schemas_pkg.joinpath("utility", "ieee")
+    if not ieee_utility.is_dir():
+        raise RuntimeError("Vendored utility/ieee/ schemas are missing from the package.")
+    for entry in ieee_utility.iterdir():
+        name = entry.name
+        if not name.endswith(".json"):
+            continue
+        with entry.open("r", encoding="utf-8") as f:
+            doc = json.load(f)
+        resources.append((ieee_base + name, Resource.from_contents(doc, default_specification=DRAFT7)))
+
     return Registry(retrieve=_NoNetwork()).with_resources(resources)  # type: ignore[call-arg]
 
 
