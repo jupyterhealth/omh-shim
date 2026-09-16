@@ -30,8 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   carry it: Oura's `steps` (from `daily_activity`) and OW's `steps` (from
   `ActivitySummary`).
 - `physical_activity` emits `ieee:physical-activity:1.0` (was
-  `omh:physical-activity:1.2`). No converter change — IEEE's `activity_name` is
-  a free-form string and both required fields were already emitted.
+  `omh:physical-activity:1.2`). Beyond `base_movement_quantity` above, no
+  converter change — IEEE's `activity_name` is a free-form string and both
+  required fields were already emitted.
 - `sleep_episode` emits `ieee:sleep-episode:1.0` (was `omh:sleep-episode:1.1`),
   and its efficiency field is renamed `sleep_maintenance_efficiency_percentage`
   -> `sleep_efficiency_percentage` to match IEEE. **Note:**
@@ -123,12 +124,13 @@ lands on `ieee:total-sleep-time:1.0`.
 ### Upgrading
 
 - `heart_rate`, `oxygen_saturation` and `blood_glucose` keep their schema ids and
-  stay on OMH, because IEEE 1752 defines no equivalent body. Their **validation**
-  is not unchanged: the six OMH bodies that `$ref` IEEE's `descriptive-statistic`
-  by absolute URL — `blood-glucose:4.0` among them — now accept IEEE's full
-  17-value enum where 1.5.0 raised `ValidationError` on e.g.
-  `descriptive_statistic: "count"`. That is a widening, so nothing that validated
-  before stops validating; see Fixed. Every other type moved: `physical_activity`
+  stay on OMH, because IEEE 1752 defines no equivalent body. `heart_rate` and
+  `oxygen_saturation` validate exactly as before. `blood_glucose` is one of the
+  six OMH bodies that `$ref` IEEE's `descriptive-statistic` by absolute URL, so
+  it now accepts IEEE's full 17-value enum where 1.6.0 and earlier raised
+  `ValidationError` on e.g. `descriptive_statistic: "count"`. That is a
+  widening, so nothing that validated before stops validating; see Fixed. Every
+  other type moved: `physical_activity`
   and `sleep_episode` to their IEEE namesakes, `sleep_duration` to
   `ieee:total-sleep-time:1.0`, and `step_count` is gone.
 - Observations already stored under `omh:physical-activity:1.2`,
@@ -137,12 +139,11 @@ lands on `ieee:total-sleep-time:1.0`.
   validation failure. All four Open mHealth schemas stay vendored and remain
   available through `known_ids()` / `load_schema()`, so consumers can keep
   validating those historical records.
-- JupyterHealth Exchange already seeds `ieee:physical-activity:1.0` and
-  `ieee:sleep-episode:1.0` CodeableConcepts, vendors both IEEE schemas, and
-  resolves the `ieee:` namespace. It needs one more row: an
-  `ieee:total-sleep-time:1.0` CodeableConcept, without which `sleep_duration`
-  records have no code to land under. Deployments seeded before those rows
-  existed need a re-seed.
+- JupyterHealth Exchange already seeds `ieee:physical-activity:1.0`,
+  `ieee:sleep-episode:1.0` and `ieee:total-sleep-time:1.0` CodeableConcepts
+  (the last under the IEEE system since JHE #777), vendors all three IEEE
+  schemas, and resolves the `ieee:` namespace, so it needs no change.
+  Deployments seeded before those rows existed need a re-seed.
 - Consumers that read `heart_rate_variability` must drop it; JHE never ingested
   it, because it resolves only the `omh` and `ieee` namespaces.
 

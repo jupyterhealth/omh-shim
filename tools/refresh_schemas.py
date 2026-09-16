@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Refresh vendored schemas from OMH and IEEE 1752.1 at pinned refs.
 
-By default the script verifies the vendored body + utility (OMH) and
-envelope/utility (IEEE 1752.1) schemas against the refs recorded in
+By default the script verifies the vendored OMH (body + utility) and IEEE
+1752.1 (envelope + body + utility) schemas against the refs recorded in
 ``omh_shim/schemas/_pinned.json``. Pass ``--omh-ref`` and/or ``--ieee-ref``
 to fetch a different ref for either source; when changes are confirmed, the
 pinned ref for any family passed explicitly is updated automatically.
@@ -235,7 +235,7 @@ def fetch(url: str, *, expect_json: bool = True) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Refresh vendored OMH schemas at a pinned ref.")
+    parser = argparse.ArgumentParser(description="Refresh vendored OMH and IEEE 1752.1 schemas at pinned refs.")
     parser.add_argument(
         "--omh-ref",
         help="Tag or SHA from openmhealth/schemas. Defaults to the ref in _pinned.json.",
