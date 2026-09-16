@@ -1,8 +1,8 @@
-"""Validate converter outputs against vendored OMH schemas.
+"""Validate converter outputs against vendored IEEE 1752 and OMH schemas.
 
-OMH schemas use ``$ref`` to reference other schemas by relative filename
+Body schemas use ``$ref`` to reference other schemas by relative filename
 (e.g. ``"unit-value-1.x.json"``). All transitively-referenced schemas are
-vendored alongside the top-level OMH schemas in ``omh_shim/schemas/`` so
+vendored alongside the top-level body schemas in ``omh_shim/schemas/`` so
 ref resolution can be served from local files without network access.
 """
 
@@ -101,7 +101,7 @@ def _registry() -> Registry:
 
 
 def validate_output(output: dict[str, Any], schema_id: str) -> None:
-    """Validate ``output`` against the OMH schema identified by ``schema_id``.
+    """Validate ``output`` against the vendored schema identified by ``schema_id``.
 
     Raises ``ValidationError`` with a human-readable message listing all
     violations. Returns ``None`` on success.
