@@ -7,6 +7,146 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (BREAKING)
+
+- Body schemas now resolve **IEEE 1752 first, Open mHealth second**, and
+  **omh-shim never emits a schema its publisher has deprecated**. `SCHEMA_IDS`
+  is derived from a candidate table ranked by namespace precedence rather than
+  hand-written, and import-time guards reject a vendored candidate carrying a
+  `deprecation` block, an unknown namespace, a candidate whose measure name is
+  neither its data type's nor the successor that measure's Open mHealth schema
+  declares in `deprecation.supersededBy`, a malformed schema id, more than one
+  candidate per namespace, and any data type that resolves to no vendored
+  schema. Following a dated `supersededBy` pointer is the publisher's own
+  instruction, not inference — the successor name is read from the vendored
+  file at import, so nobody can declare a successor the publisher did not.
+- `sleep_duration` emits `ieee:total-sleep-time:1.0` (was
+  `omh:sleep-duration:2.0`, which OMH deprecated on 2020-05-05 in favor of
+  `omh:total-sleep-time:1.x`, itself since deprecated in favor of IEEE's
+  `total-sleep-time`). The body field is renamed `sleep_duration` ->
+  `total_sleep_time`; values and time frames are unchanged.
+- `physical_activity` now emits `base_movement_quantity` (unit `steps`) when the
+  source record carries a step count. Both sources' `physical_activity` bodies
+  carry it: Oura's `steps` (from `daily_activity`) and OW's `steps` (from
+  `ActivitySummary`).
+- `physical_activity` emits `ieee:physical-activity:1.0` (was
+  `omh:physical-activity:1.2`). Beyond `base_movement_quantity` above, no
+  converter change — IEEE's `activity_name` is a free-form string and both
+  required fields were already emitted.
+- `sleep_episode` emits `ieee:sleep-episode:1.0` (was `omh:sleep-episode:1.1`),
+  and its efficiency field is renamed `sleep_maintenance_efficiency_percentage`
+  -> `sleep_efficiency_percentage` to match IEEE. **Note:**
+  `ieee:sleep-episode:1.0` does not set `additionalProperties: false`, so the
+  old field name would have validated cleanly while IEEE-aware consumers
+  dropped it.
+
+### Removed (BREAKING)
+
+- `step_count` is no longer a supported data type. OMH deprecated
+  `omh:step-count:3.0` on 2022-12-01 in favor of `ieee:physical-activity:1.0`,
+  "which models also number of steps", so steps now ride on `physical_activity`
+  as `base_movement_quantity` (unit `steps`) — in **both** sources' bodies. Both
+  `physical_activity` converters already read the record that carries `steps`
+  (Oura `daily_activity`, OW `ActivitySummary`), so keeping `step_count` would
+  have emitted two physical-activity observations per day from one record. The
+  `ow_normalized` per-minute step timeseries shape has no IEEE home and is gone
+  with it.
+- `heart_rate_variability` is no longer a supported data type, and the
+  hand-written `local:heart-rate-variability:1.0` schema is deleted. Neither
+  IEEE 1752 nor Open mHealth publishes an HRV body schema. omh-shim no longer
+  emits any non-standard schema; the `local:` namespace is gone.
+
+### Why these two moved (the publisher said so)
+
+Neither change is a semantic judgment by omh-shim. Open mHealth ships a
+machine-readable `deprecation` block in the schemas themselves, and both of
+these have carried one for years — nested inside the schema, which is why a
+top-level `deprecated`/`supersededBy` check never saw them:
+
+- `step-count-3.0.json`, `date: "2022-12-01"` (committed upstream 2023-07-17),
+  `supersededBy: "https://w3id.org/ieee/ieee-1752-schema/physical-activity.json"` —
+  > "This schema is now deprecated, in favor of the IEEE 1752.1
+  > physical-activity schema which models also number of steps."
+- `sleep-duration-2.0.json`, `date: "2020-05-05"`,
+  `supersededBy: "omh:total-sleep-time:1.x"` —
+  > "This schema is now deprecated, in favor of the more precisely named
+  > total-sleep-time."
+
+Following a dated `supersededBy` pointer is the publisher's own instruction,
+not inference. `omh:total-sleep-time:1.x` was itself deprecated upstream on
+2026-06-18 in favor of IEEE's `total-sleep-time`, so IEEE-first resolution
+lands on `ieee:total-sleep-time:1.0`.
+
+### Added
+
+- Vendored `ieee:physical-activity:1.0` and `ieee:sleep-episode:1.0` at IEEE
+  ref 1.0.2, with physical-activity's `$ref` closure
+  (`length`/`kcal`/`speed-unit-value-1.0`). `ieee:total-sleep-time:1.0`,
+  vendored served-only in 1.6.0, now resolves for `sleep_duration`.
+- `omh:step-count:3.0`, `omh:sleep-duration:2.0`, `omh:physical-activity:1.2`
+  and `omh:sleep-episode:1.1` stay vendored as served-only schemas: all four are
+  deprecated upstream, they are the evidence the successor invariant reads, and
+  downstream consumers still validate historical records against them.
+- Vendored IEEE's `descriptive-statistic-1.0` under `schemas/utility/ieee/`,
+  alongside the Open mHealth schema of the same filename.
+- `tools/check_schema_adoption.py`, run weekly by the `schema-drift-check`
+  workflow, watches the two upstream signals that can invalidate a resolved id.
+  Primary: every `omh:` id in `known_ids()` — resolved and served-only — is
+  fetched from `openmhealth/schemas` at `main` and reported as `DEPRECATED`
+  when upstream carries a `deprecation` block. A deprecation on a served-only
+  schema whose declared successor is vendored as a live (non-deprecated) schema
+  is expected and reported as ok, so the four Open mHealth schemas above do not
+  open an issue every week. Secondary: whether IEEE 1752.1 has published a
+  measure omh-shim still resolves to OMH (`ADOPT`) or a newer version of one it
+  already resolves to IEEE (`NEWER`). The two sources run and fail
+  independently — an IEEE outage does not discard the Open mHealth result.
+
+### Fixed
+
+- IEEE bodies were being validated against Open mHealth's narrower
+  `descriptive-statistic` enum. IEEE's has 17 values (it adds `count`,
+  percentiles, quartiles and quintiles) where OMH's draft-04 variant has 7, and
+  the validation registry registered the single vendored OMH file under the bare
+  filename *and* both w3id permalinks — so `ieee:physical-activity:1.0` and
+  `ieee:sleep-stage-summary:1.0` rejected `descriptive_statistic: "count"`,
+  which IEEE explicitly permits. Both variants are now vendored and each is
+  registered under the URI its own standard implies: an OMH body carries no
+  `$id`, so its relative `$ref`s resolve to the bare filename and still get the
+  7-value enum, while an IEEE body's `$id` re-bases its relative `$ref`s onto
+  `https://w3id.org/ieee/ieee-1752-schema/`, which now serves IEEE's variant.
+  Six OMH bodies (`blood-glucose:4.0`, `blood-pressure:4.0`,
+  `body-temperature:4.0`, `body-weight:3.0`, `forced-vital-capacity:1.0`,
+  `forced-expiratory-volume-1-second:1.0`) `$ref` the absolute IEEE URL rather
+  than the filename, so they now accept IEEE's full enum — a widening upstream
+  OMH wrote deliberately. `omh:step-count:3.0` is the only OMH body using the
+  bare relative `$ref` and is unchanged.
+
+### Upgrading
+
+- `heart_rate`, `oxygen_saturation` and `blood_glucose` keep their schema ids and
+  stay on OMH, because IEEE 1752 defines no equivalent body. `heart_rate` and
+  `oxygen_saturation` validate exactly as before. `blood_glucose` is one of the
+  six OMH bodies that `$ref` IEEE's `descriptive-statistic` by absolute URL, so
+  it now accepts IEEE's full 17-value enum where 1.6.0 and earlier raised
+  `ValidationError` on e.g. `descriptive_statistic: "count"`. That is a
+  widening, so nothing that validated before stops validating; see Fixed. Every
+  other type moved: `physical_activity`
+  and `sleep_episode` to their IEEE namesakes, `sleep_duration` to
+  `ieee:total-sleep-time:1.0`, and `step_count` is gone.
+- Observations already stored under `omh:physical-activity:1.2`,
+  `omh:sleep-episode:1.1`, `omh:step-count:3.0` or `omh:sleep-duration:2.0` keep
+  those codes. New records use the new ids — a historical split, not a
+  validation failure. All four Open mHealth schemas stay vendored and remain
+  available through `known_ids()` / `load_schema()`, so consumers can keep
+  validating those historical records.
+- JupyterHealth Exchange already seeds `ieee:physical-activity:1.0`,
+  `ieee:sleep-episode:1.0` and `ieee:total-sleep-time:1.0` CodeableConcepts
+  (the last under the IEEE system since JHE #777), vendors all three IEEE
+  schemas, and resolves the `ieee:` namespace, so it needs no change.
+  Deployments seeded before those rows existed need a re-seed.
+- Consumers that read `heart_rate_variability` must drop it; JHE never ingested
+  it, because it resolves only the `omh` and `ieee` namespaces.
+
 ## [1.6.0] — 2026-09-13
 
 ### Added

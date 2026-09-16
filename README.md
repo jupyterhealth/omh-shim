@@ -1,15 +1,17 @@
 # omh-shim
 
-Convert wearable health data from vendor schemas to [Open mHealth](https://www.openmhealth.org/) schemas.
+Convert wearable health data from vendor schemas to [IEEE 1752](https://opensource.ieee.org/omh/1752) and [Open mHealth](https://www.openmhealth.org/) schemas.
 
 ## Status
 
-v1.0 — initial public release. Public API is stable; converter coverage will continue to expand.
+v2.0 — breaking release. Body schemas now resolve IEEE 1752 first and omh-shim never
+emits a schema its publisher has deprecated, which moved three data
+types and removed two. See [CHANGELOG.md](CHANGELOG.md) before upgrading from 1.x.
 
 ## Install
 
 ```bash
-pip install git+https://github.com/jupyterhealth/omh-shim.git@v1.0.1
+pip install git+https://github.com/jupyterhealth/omh-shim.git@v2.0.0
 ```
 
 ## Usage
@@ -32,7 +34,7 @@ omh_record = convert(
 )
 ```
 
-Daily data types (``step_count``, ``physical_activity``, ``sleep_duration``,
+Daily data types (``physical_activity``, ``sleep_duration``,
 ``oxygen_saturation``)
 aggregate over a calendar day, so they REQUIRE an explicit timezone so the day
 boundaries reflect the user's local day rather than silently assuming UTC:
@@ -44,7 +46,7 @@ from zoneinfo import ZoneInfo
 # UTC-anchored upstream data
 convert(
     source="oura_raw",
-    data_type="step_count",
+    data_type="physical_activity",
     sample={"day": "2026-04-09", "steps": 8432},
     tz=UTC,
 )
@@ -52,7 +54,7 @@ convert(
 # User's local timezone
 convert(
     source="oura_raw",
-    data_type="step_count",
+    data_type="physical_activity",
     sample={"day": "2026-04-09", "steps": 8432},
     tz=ZoneInfo("America/Los_Angeles"),
 )
@@ -95,21 +97,36 @@ fails schema validation.
 
 | `source` | `data_type` values |
 |---|---|
-| `oura_raw` | `heart_rate`, `heart_rate_variability`, `oxygen_saturation`, `step_count`, `sleep_duration`, `sleep_episode`, `physical_activity` |
-| `ow_normalized` | `heart_rate`, `heart_rate_variability`, `oxygen_saturation`, `step_count`, `sleep_duration`, `sleep_episode`, `physical_activity`, `blood_glucose` |
+| `oura_raw` | `heart_rate`, `oxygen_saturation`, `sleep_duration`, `sleep_episode`, `physical_activity` |
+| `ow_normalized` | `heart_rate`, `oxygen_saturation`, `sleep_duration`, `sleep_episode`, `physical_activity`, `blood_glucose` |
 
-Note: `heart_rate_variability` targets the local placeholder schema
-`local:heart-rate-variability:1.0` (Open mHealth has not published a canonical
-HRV schema as of 2026-04). The `local:` namespace is deliberate — downstream
-consumers should not assume OMH-standard interoperability for HRV records.
+Body schemas resolve IEEE 1752 first, Open mHealth second, and omh-shim never
+emits a schema its publisher has deprecated — where a deprecated Open mHealth
+schema declares a successor, that successor is what resolves (`sleep_duration`
+emits `ieee:total-sleep-time:1.0`). omh-shim emits only schemas published by one
+of those two standards; where neither defines a measure (heart-rate variability,
+for example) it does not convert it. Steps are carried by `physical_activity` as
+`base_movement_quantity`; there is no separate step-count data type.
 
 ## Served schemas without a converter
 
-omh-shim also vendors clinical OMH body schemas that have no `convert()`
-converter: blood pressure, body temperature, body weight, forced expiratory
-volume in 1 second (FEV1), forced vital capacity (FVC), respiratory rate, and
-RR interval. They exist so consumers can **serve and validate** OMH
-bodies offline from a single pinned source:
+omh-shim also vendors body schemas that have no `convert()` converter:
+
+- Clinical Open mHealth bodies — `omh:blood-pressure:4.0`,
+  `omh:body-temperature:4.0`, `omh:body-weight:3.0`,
+  `omh:forced-expiratory-volume-1-second:1.0`, `omh:forced-vital-capacity:1.0`,
+  `omh:respiratory-rate:2.0`, `omh:rr-interval:1.0`.
+- `ieee:sleep-stage-summary:1.0`, served for downstream consumers that summarize
+  sleep stages.
+- `omh:physical-activity:1.2`, `omh:sleep-episode:1.1`, `omh:step-count:3.0` and
+  `omh:sleep-duration:2.0` — the Open mHealth bodies omh-shim emitted before
+  2.0.0 moved them to IEEE. Open mHealth has deprecated all four, so none may be
+  a resolution candidate; they stay vendored because they are the evidence the
+  successor invariant reads at import, and so consumers can keep validating
+  records written under the old ids.
+
+They exist so consumers can **serve and validate** these bodies offline from a
+single pinned source:
 
 ```python
 from omh_shim import known_ids, load_schema
@@ -120,7 +137,10 @@ schema = load_schema("omh:blood-pressure:4.0")  # vendored JSON schema, all $ref
 
 These are tracked as `SERVED_NO_CONVERTER` in `tests/test_schema_coverage.py`
 (the authoritative list) and refreshed alongside the converter schemas by
-`tools/refresh_schemas.py`.
+`tools/refresh_schemas.py`. `tools/check_schema_adoption.py` watches the same two
+publishers for changes that would invalidate a resolved id — an Open mHealth
+deprecation, or an IEEE measure omh-shim could now adopt. Both tools need an
+editable install (`pip install -e .`) and run from the repo root.
 
 ## Adding a new source
 

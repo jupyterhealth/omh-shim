@@ -6,9 +6,10 @@ Open mHealth schemas, with full test coverage.
 
 ## Prerequisites
 
-- The data type you're converting must have a vendored OMH schema under
-  `omh_shim/schemas/data/`. If it doesn't, vendor one first using
-  `tools/refresh_schemas.py` (see `omh_shim/schemas/README.md`).
+- The data type you're converting must have a vendored IEEE 1752 or OMH body
+  schema under `omh_shim/schemas/data/` (IEEE first, OMH second; see
+  `omh_shim/schemas/README.md`). If it doesn't, vendor one first using
+  `tools/refresh_schemas.py`.
 - Familiarity with the vendor's API response shape (field names, types, nesting).
 
 ## Step 1: Create the source module
@@ -28,14 +29,15 @@ def heart_rate(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any
 ```
 
 - **`sample`** — one record from the vendor's API (a dict).
-- **`tz`** — timezone for daily data types (`step_count`, `physical_activity`,
+- **`tz`** — timezone for daily data types (`physical_activity`,
   `sleep_duration`, `oxygen_saturation`). Timestamp-based types can ignore it.
-- **Returns** — the OMH body dict (not the envelope). The envelope (header +
+- **Returns** — the body dict (IEEE or OMH, per the data type's entry in
+  `SCHEMA_IDS`), not the envelope. The envelope (header +
   body) is built automatically by `convert()`.
 
 ### Shared helpers
 
-`omh_shim/_helpers.py` provides common OMH formatting functions. Use them
+`omh_shim/_helpers.py` provides common body formatting functions. Use them
 instead of building dicts by hand:
 
 | Helper | Use for | Example |

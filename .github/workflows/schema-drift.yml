@@ -40,11 +40,15 @@ jobs:
       - name: Check for drift and refresh
         id: drift
         run: |
+          # IEEE's WAF blocks non-CLI User-Agents with an HTML challenge page served at HTTP 200,
+          # so this must match tools/refresh_schemas.py's USER_AGENT or IEEE calls fail silently.
+          IEEE_UA="curl/8.7.1 omh-shim-refresh/1.0"
+
           PINNED_OMH=$(python -c "import json; print(json.loads(open('omh_shim/schemas/_pinned.json').read())['omh']['ref'])")
           PINNED_IEEE=$(python -c "import json; print(json.loads(open('omh_shim/schemas/_pinned.json').read())['ieee']['ref'])")
 
           UPSTREAM_OMH=$(curl -fsSL https://api.github.com/repos/openmhealth/schemas/git/refs/heads/main | python -c "import sys,json; print(json.load(sys.stdin)['object']['sha'])")
-          UPSTREAM_IEEE=$(curl -fsSL "https://opensource.ieee.org/api/v4/projects/omh%2F1752/repository/tags?per_page=1" -H "User-Agent: omh-shim-drift-check/1.0" | python -c "import sys,json; print(json.load(sys.stdin)[0]['name'])")
+          UPSTREAM_IEEE=$(curl -fsSL "https://opensource.ieee.org/api/v4/projects/omh%2F1752/repository/tags?per_page=1" -H "User-Agent: ${IEEE_UA}" | python -c "import sys,json; print(json.load(sys.stdin)[0]['name'])")
 
           echo "pinned_omh=$PINNED_OMH" >> "$GITHUB_OUTPUT"
           echo "pinned_ieee=$PINNED_IEEE" >> "$GITHUB_OUTPUT"
@@ -54,18 +58,33 @@ jobs:
           # Detect schemas ADDED upstream since the pinned ref. These are not
           # tracked by refresh_schemas.py, so the refresh below cannot see
           # them — without this check they would land upstream silently.
-          # Detection is best-effort (|| true): a compare-API hiccup must not
-          # break the drift check itself.
+          # Detection is best-effort: a compare-API hiccup must not break the
+          # drift check itself, but any failure — either source — is echoed
+          # via ::warning:: rather than swallowed.
           # Note: the GitHub compare API caps the files array at 300 entries
           # (https://docs.github.com/en/rest/commits/commits#compare-two-commits);
           # a weekly diff of the OMH repo stays far below that in practice.
           NEW_OMH=""
           if [ "$PINNED_OMH" != "$UPSTREAM_OMH" ]; then
-            NEW_OMH=$(curl -fsSL "https://api.github.com/repos/openmhealth/schemas/compare/${PINNED_OMH}...${UPSTREAM_OMH}" | python -c "import sys,json; print('\n'.join(f['filename'].removeprefix('schema/omh/') for f in json.load(sys.stdin).get('files',[]) if f['status']=='added' and f['filename'].startswith('schema/omh/') and f['filename'].endswith('.json')))" || true)
+            if OMH_COMPARE_JSON=$(curl -fsSL "https://api.github.com/repos/openmhealth/schemas/compare/${PINNED_OMH}...${UPSTREAM_OMH}"); then
+              if ! NEW_OMH=$(echo "$OMH_COMPARE_JSON" | python -c "import sys,json; print('\n'.join(f['filename'].removeprefix('schema/omh/') for f in json.load(sys.stdin).get('files',[]) if f['status']=='added' and f['filename'].startswith('schema/omh/') and f['filename'].endswith('.json')))"); then
+                echo "::warning::OMH compare ${PINNED_OMH}...${UPSTREAM_OMH} returned non-JSON; new-OMH-schema detection skipped this run"
+                NEW_OMH=""
+              fi
+            else
+              echo "::warning::OMH compare API request failed for ${PINNED_OMH}...${UPSTREAM_OMH}; new-OMH-schema detection skipped this run"
+            fi
           fi
           NEW_IEEE=""
           if [ "$PINNED_IEEE" != "$UPSTREAM_IEEE" ]; then
-            NEW_IEEE=$(curl -fsSL "https://opensource.ieee.org/api/v4/projects/omh%2F1752/repository/compare?from=${PINNED_IEEE}&to=${UPSTREAM_IEEE}" -H "User-Agent: omh-shim-drift-check/1.0" | python -c "import sys,json; print('\n'.join(d['new_path'].removeprefix('schemas/') for d in json.load(sys.stdin).get('diffs',[]) if d.get('new_file') and d['new_path'].startswith('schemas/') and d['new_path'].endswith('.json')))" || true)
+            if IEEE_COMPARE_JSON=$(curl -fsSL "https://opensource.ieee.org/api/v4/projects/omh%2F1752/repository/compare?from=${PINNED_IEEE}&to=${UPSTREAM_IEEE}" -H "User-Agent: ${IEEE_UA}"); then
+              if ! NEW_IEEE=$(echo "$IEEE_COMPARE_JSON" | python -c "import sys,json; print('\n'.join(d['new_path'].removeprefix('schemas/') for d in json.load(sys.stdin).get('diffs',[]) if d.get('new_file') and d['new_path'].startswith('schemas/') and d['new_path'].endswith('.json')))"); then
+                echo "::warning::IEEE compare ${PINNED_IEEE}...${UPSTREAM_IEEE} returned non-JSON (likely a WAF block); new-IEEE-schema detection skipped this run"
+                NEW_IEEE=""
+              fi
+            else
+              echo "::warning::IEEE compare API request failed for ${PINNED_IEEE}...${UPSTREAM_IEEE}; new-IEEE-schema detection skipped this run"
+            fi
           fi
 
           NEW_SCHEMAS=""
@@ -118,6 +137,113 @@ jobs:
           echo "$CHANGED_FILES" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
 
+      # if: always() — this must run every scheduled execution: when the drift step
+      # exits 0 early (no drift, an intentional early return) AND when it fails
+      # outright (an unintentional one). Adoption findings are independent of ref
+      # movement, so neither case may suppress this step.
+      - name: Check schema adoption
+        id: adoption
+        if: always()
+        run: |
+          set +e
+          python tools/check_schema_adoption.py --json > adoption_findings.json 2> adoption_err.txt
+          STATUS=$?
+          set -e
+
+          # Unconditional: every ::warning:: the tool emits — including the per-schema OMH
+          # fetch failures — belongs in the run log on the success path too, not only when
+          # the whole check dies.
+          cat adoption_err.txt
+
+          # Computed on BOTH paths and before the early exit: a source that did not run has to
+          # reach the tracking issue, not just this step's summary. A green weekly job with a
+          # warning nobody opens is how the IEEE WAF block went unnoticed on 2026-08-31 and
+          # 2026-09-07. Silence must not look like success.
+          NOT_EVALUATED=$(python -c "
+          import json
+          labels = {'omh': 'Open mHealth deprecations', 'ieee': 'IEEE 1752.1 publication'}
+          try:
+              report = json.load(open('adoption_findings.json'))
+          except Exception as e:
+              print(f'- ⚠️ **Both sources NOT evaluated**: check_schema_adoption.py produced no usable report ({e})')
+          else:
+              for key, label in labels.items():
+                  source = report.get(key) or {}
+                  if not source.get('ran'):
+                      print(f\"- ⚠️ **{label} NOT evaluated** (ref \`{source.get('ref', '?')}\`): \"
+                            f\"{source.get('error') or 'no status reported'}\")
+                  elif source.get('failed'):
+                      # A partial fetch is not a clean result: an upstream rename gives a
+                      # permanent 404, and that schema then goes unchecked every week.
+                      ids = ', '.join(f\"\`{f.split(' ', 1)[0].rstrip(':')}\`\" for f in source['failed'])
+                      print(f\"- ⚠️ **{label} PARTIALLY evaluated** (ref \`{source.get('ref', '?')}\`): \"
+                            f\"{source.get('fetched', '?')} schema(s) checked; NOT checked: {ids}\")
+                      for failure in source['failed']:
+                          print(f'  - {failure}')
+          ")
+
+          echo "not_evaluated<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$NOT_EVALUATED" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+          # A separate boolean, because a heredoc output's emptiness is ambiguous to compare against.
+          if [ -n "$NOT_EVALUATED" ]; then
+            echo "has_not_evaluated=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_not_evaluated=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ "$STATUS" -ne 0 ]; then
+            echo "::warning::check_schema_adoption.py failed to run (exit $STATUS) — NEITHER upstream source was evaluated this run"
+            {
+              echo "## Schema adoption check"
+              echo "Neither source could be checked this week — see the job warnings above. This is NOT the same as \"no findings\"."
+              echo "$NOT_EVALUATED"
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "ran_ok=false" >> "$GITHUB_OUTPUT"
+            echo "has_findings=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "ran_ok=true" >> "$GITHUB_OUTPUT"
+
+          # Findings only; the NOT-evaluated lines are prepended from $NOT_EVALUATED above.
+          FINDINGS_BODY=$(python -c "
+          import json
+          report = json.load(open('adoption_findings.json'))
+          findings = report['findings']
+          labels = {'omh': 'Open mHealth deprecations', 'ieee': 'IEEE 1752.1 publication'}
+          # A source with any per-schema failure is not a clean 'no findings' either.
+          skipped = [k for k in labels if not report[k]['ran'] or report[k].get('failed')]
+          for f in findings:
+              if f['kind'] == 'DEPRECATED':
+                  when = f\" on {f['deprecation_date']}\" if f['deprecation_date'] else ''
+                  print(f\"- **DEPRECATED** \`{f['current']}\`: Open mHealth deprecated it{when} \"
+                        f\"in favor of \`{f['superseded_by'] or 'an unnamed successor'}\`\")
+                  continue
+              verb = 'IEEE now publishes' if f['kind'] == 'ADOPT' else 'IEEE publishes a newer version of'
+              print(f\"- **{f['kind']}** \`{f['data_type']}\`: {verb} \`{f['measure']}\` \"
+                    f\"({', '.join(f['versions'])}); currently resolved to \`{f['current']}\`\")
+          if not findings:
+              ran = [labels[k] for k in labels if k not in skipped]
+              print(f\"- No findings from: {', '.join(ran)}.\")
+          ")
+
+          {
+            echo "## Schema adoption check"
+            if [ -n "$NOT_EVALUATED" ]; then echo "$NOT_EVALUATED"; fi
+            echo "$FINDINGS_BODY"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "findings_body<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$FINDINGS_BODY" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+          COUNT=$(python -c "import json; print(len(json.load(open('adoption_findings.json'))['findings']))")
+          if [ "$COUNT" -gt 0 ]; then
+            echo "has_findings=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_findings=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Commit and push
         if: steps.drift.outputs.drift == 'true'
         env:
@@ -165,7 +291,9 @@ jobs:
 
           1. Review the **Files changed** tab for breaking changes
           2. If CI is green, the change is additive — squash-merge
-          3. If CI is red, a converter needs updating to match the new schema
+          3. If CI is red, a converter needs updating to match the new schema, or the
+             resolver refused a newly-deprecated candidate (see the run log) — in which case
+             point it at the successor that schema declares, in \`_SCHEMA_CANDIDATES\`
 
           ### Upstream diffs
 
@@ -204,27 +332,36 @@ jobs:
             echo "Created new PR"
           fi
 
-      - name: Open or update issue for new upstream schemas
-        if: steps.drift.outputs.has_new == 'true'
+      - name: Open or update issue for schema-drift findings
+        # always() — a drift-step failure (not just its early exit) must not swallow adoption
+        # findings the way NEW BREAKAGE 2 flagged; without it this step defaults to success().
+        if: always() && (steps.drift.outputs.has_new == 'true' || steps.adoption.outputs.has_findings == 'true' || steps.adoption.outputs.has_not_evaluated == 'true')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PINNED_OMH: ${{ steps.drift.outputs.pinned_omh }}
           PINNED_IEEE: ${{ steps.drift.outputs.pinned_ieee }}
           NEW_SCHEMAS: ${{ steps.drift.outputs.new_schemas }}
+          HAS_ADOPTION_FINDINGS: ${{ steps.adoption.outputs.has_findings }}
+          ADOPTION_FINDINGS: ${{ steps.adoption.outputs.findings_body }}
+          NOT_EVALUATED: ${{ steps.adoption.outputs.not_evaluated }}
         run: |
-          TITLE="chore(schemas): new upstream schemas detected (not vendored)"
-          BODY=$(cat <<EOF
-          The weekly drift check found schemas added upstream since the pinned
-          refs (OMH \`${PINNED_OMH}\`, IEEE \`${PINNED_IEEE}\`) that omh-shim
-          does not vendor:
+          TITLE="chore(schemas): schema-drift tracking (new upstream schemas / schema adoption)"
+          BODY="The weekly drift check found items that need a human decision (pinned refs: OMH \`${PINNED_OMH}\`, IEEE \`${PINNED_IEEE}\`)."
+
+          if [ -n "$NEW_SCHEMAS" ]; then
+            BODY="$BODY
+
+          ### New upstream schemas (not vendored)
+
+          Added upstream since the pinned refs and NOT tracked by
+          \`tools/refresh_schemas.py\` — once the pin moves past them this
+          detection goes quiet, so this issue is the durable record:
 
           \`\`\`
           ${NEW_SCHEMAS}
           \`\`\`
 
-          They are NOT auto-vendored — once the pin moves past them this
-          detection goes quiet, so this issue is the durable record. To vendor
-          one, follow the pattern from the body-weight / pulmonary PRs:
+          To vendor one, follow the pattern from the body-weight / pulmonary PRs:
 
           1. Add it to \`TARGETS\` (and any new utility refs to
              \`OMH_UTILITY_TARGETS\`) in \`tools/refresh_schemas.py\`
@@ -233,11 +370,49 @@ jobs:
              entries; the offline \$ref-closure test catches missing refs
           4. CHANGELOG entry + MINOR version bump
 
-          If a schema is deliberately not vendored, note that here and close.
-          EOF
-          )
+          If a schema is deliberately not vendored, note that here and close."
+          fi
 
-          EXISTING=$(gh issue list --state open --label schema-drift --search "new upstream schemas detected in:title" --json number -q '.[0].number')
+          if [ -n "$NOT_EVALUATED" ]; then
+            BODY="$BODY
+
+          ### ⚠️ NOT evaluated this week
+
+          One or both upstream sources could not be checked, so this week's result is
+          **not** an all-clear for them:
+
+          ${NOT_EVALUATED}
+
+          This is actionable: it is usually the IEEE WAF rejecting the User-Agent, a bad
+          ref, a \`raw.githubusercontent.com\` rate limit or 404 after an upstream rename, or
+          the resolver refused a newly-deprecated candidate (see the run log). Until it is
+          fixed, an upstream deprecation or a new IEEE measure can land unnoticed."
+          fi
+
+          if [ "$HAS_ADOPTION_FINDINGS" = "true" ]; then
+            BODY="$BODY
+
+          ### Schema adoption findings
+
+          \`tools/check_schema_adoption.py\` found an upstream Open mHealth
+          deprecation that omh-shim has not acted on, or a data type it could now
+          resolve to IEEE 1752.1 / upgrade to a newer published IEEE version:
+
+          ${ADOPTION_FINDINGS}
+
+          A **DEPRECATED** finding on a schema omh-shim resolves to is the urgent
+          one: the resolver refuses deprecated candidates at import, so the next
+          schema refresh will break the build until the candidate moves to the
+          declared successor. (Deprecations on served-only schemas whose successor
+          is already vendored are expected and are not reported.)
+
+          To adopt an IEEE schema, add the IEEE candidate id to
+          \`_SCHEMA_CANDIDATES\` in \`omh_shim/__init__.py\` — IEEE wins over OMH
+          automatically once vendored (see \`IEEE_DATA_TARGETS\` in
+          \`tools/refresh_schemas.py\`)."
+          fi
+
+          EXISTING=$(gh issue list --state open --label schema-drift --json number -q '.[0].number')
           if [ -n "$EXISTING" ]; then
             gh issue comment "$EXISTING" --body "$BODY"
             echo "Commented on existing issue #$EXISTING"

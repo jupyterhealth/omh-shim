@@ -1,7 +1,0 @@
-{
-  "timestamp": "2026-04-09T03:15:00+00:00",
-  "type": "heart_rate_variability",
-  "value": 42.5,
-  "unit": "ms",
-  "source": {"source_name": "Oura Ring", "device_model": "Oura Gen 3"}
-}

@@ -9,5 +9,5 @@
   "wake_after_sleep_onset": {"value": 2100, "unit": "sec"},
   "latency_to_sleep_onset": {"value": 540, "unit": "sec"},
   "is_main_sleep": true,
-  "sleep_maintenance_efficiency_percentage": {"value": 92.5, "unit": "%"}
+  "sleep_efficiency_percentage": {"value": 92.5, "unit": "%"}
 }
