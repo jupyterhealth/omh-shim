@@ -93,9 +93,10 @@ lands on `ieee:total-sleep-time:1.0`.
 
 ### Added
 
-- Vendored `ieee:physical-activity:1.0`, `ieee:sleep-episode:1.0` and
-  `ieee:total-sleep-time:1.0` at IEEE ref 1.0.2, with physical-activity's
-  `$ref` closure (`length`/`kcal`/`speed-unit-value-1.0`).
+- Vendored `ieee:physical-activity:1.0` and `ieee:sleep-episode:1.0` at IEEE
+  ref 1.0.2, with physical-activity's `$ref` closure
+  (`length`/`kcal`/`speed-unit-value-1.0`). `ieee:total-sleep-time:1.0`,
+  vendored served-only in 1.6.0, now resolves for `sleep_duration`.
 - `omh:step-count:3.0`, `omh:sleep-duration:2.0`, `omh:physical-activity:1.2`
   and `omh:sleep-episode:1.1` stay vendored as served-only schemas: all four are
   deprecated upstream, they are the evidence the successor invariant reads, and
@@ -123,15 +124,6 @@ lands on `ieee:total-sleep-time:1.0`.
   OMH wrote deliberately. `omh:step-count:3.0` is the only OMH body using the
   bare relative `$ref` and is unchanged.
 
-- `tools/refresh_schemas.py`'s IEEE fetches were silently vendoring HTML: the
-  WAF in front of the `/-/raw/` endpoint answers this tool's requests with a
-  challenge page at HTTP 200, and `fetch()` treated that response as success.
-  The fix is two-part — every response is now parsed as JSON unless explicitly
-  exempted, and the request sends a User-Agent the WAF accepts (a bare tool
-  name got the challenge page; a `curl`-prefixed UA does not). Measurement
-  showed the transport was never the problem — the User-Agent was the only
-  variable — so the endpoint is unchanged.
-
 ### Upgrading
 
 - `heart_rate`, `oxygen_saturation` and `blood_glucose` keep their schema ids and
@@ -158,7 +150,7 @@ lands on `ieee:total-sleep-time:1.0`.
 - Consumers that read `heart_rate_variability` must drop it; JHE never ingested
   it, because it resolves only the `omh` and `ieee` namespaces.
 
-## [1.5.0] — 2026-08-31
+## [1.6.0] — 2026-09-13
 
 ### Added
 
@@ -176,6 +168,10 @@ lands on `ieee:total-sleep-time:1.0`.
   over the vendored IEEE schemas without noticing. It now sends a CLI-client UA,
   applies the socket timeout, and refuses any response that is not JSON (the `.x`
   pointer fetches excepted). Backported from the 2.0.0 branch.
+
+## [1.5.0] — 2026-08-31
+
+### Added
 
 - `ow_normalized.blood_glucose` converter, mapping an OW `TimeSeriesSample` with
   `type=blood_glucose` to `omh:blood-glucose:4.0`. The vendored blood-glucose
