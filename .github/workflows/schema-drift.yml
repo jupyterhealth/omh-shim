@@ -59,14 +59,21 @@ jobs:
           # tracked by refresh_schemas.py, so the refresh below cannot see
           # them — without this check they would land upstream silently.
           # Detection is best-effort: a compare-API hiccup must not break the
-          # drift check itself, but (unlike the old NEW_IEEE || true) any
-          # failure is echoed via ::warning:: rather than swallowed.
+          # drift check itself, but any failure — either source — is echoed
+          # via ::warning:: rather than swallowed.
           # Note: the GitHub compare API caps the files array at 300 entries
           # (https://docs.github.com/en/rest/commits/commits#compare-two-commits);
           # a weekly diff of the OMH repo stays far below that in practice.
           NEW_OMH=""
           if [ "$PINNED_OMH" != "$UPSTREAM_OMH" ]; then
-            NEW_OMH=$(curl -fsSL "https://api.github.com/repos/openmhealth/schemas/compare/${PINNED_OMH}...${UPSTREAM_OMH}" | python -c "import sys,json; print('\n'.join(f['filename'].removeprefix('schema/omh/') for f in json.load(sys.stdin).get('files',[]) if f['status']=='added' and f['filename'].startswith('schema/omh/') and f['filename'].endswith('.json')))" || true)
+            if OMH_COMPARE_JSON=$(curl -fsSL "https://api.github.com/repos/openmhealth/schemas/compare/${PINNED_OMH}...${UPSTREAM_OMH}"); then
+              if ! NEW_OMH=$(echo "$OMH_COMPARE_JSON" | python -c "import sys,json; print('\n'.join(f['filename'].removeprefix('schema/omh/') for f in json.load(sys.stdin).get('files',[]) if f['status']=='added' and f['filename'].startswith('schema/omh/') and f['filename'].endswith('.json')))"); then
+                echo "::warning::OMH compare ${PINNED_OMH}...${UPSTREAM_OMH} returned non-JSON; new-OMH-schema detection skipped this run"
+                NEW_OMH=""
+              fi
+            else
+              echo "::warning::OMH compare API request failed for ${PINNED_OMH}...${UPSTREAM_OMH}; new-OMH-schema detection skipped this run"
+            fi
           fi
           NEW_IEEE=""
           if [ "$PINNED_IEEE" != "$UPSTREAM_IEEE" ]; then

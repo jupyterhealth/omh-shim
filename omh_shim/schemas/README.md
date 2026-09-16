@@ -3,7 +3,7 @@
 Schemas are vendored from two upstream sources:
 
 - **OMH:** `https://github.com/openmhealth/schemas` — body schemas (heart-rate, blood-glucose, etc.)
-- **IEEE 1752.1:** `https://opensource.ieee.org/omh/1752` — envelope schemas (header, data-point, schema-id) and shared utility refs
+- **IEEE 1752.1:** `https://opensource.ieee.org/omh/1752` — envelope schemas (header, data-point, schema-id), body schemas (physical-activity, sleep-episode, total-sleep-time, etc.) and shared utility refs
 
 Pinned versions are recorded in [`_pinned.json`](_pinned.json). Don't edit that file by hand — use `tools/refresh_schemas.py` (see below).
 
@@ -42,4 +42,4 @@ python tools/refresh_schemas.py --omh-ref <tag-or-sha> --ieee-ref 1.0.3
 
 The script shows diffs, prompts for confirmation, writes the schema files, and updates `_pinned.json` (only for families where you passed a flag — default-mode runs never write).
 
-Body validation uses OMH schemas; header validation uses IEEE 1752.1 (`metadata/header-1.0.json`). See `tests/test_schema_coverage.py` for the authoritative list of implemented schemas.
+Body validation uses IEEE 1752.1 and OMH schemas — a data type resolves to IEEE first, OMH second, and never to a schema its publisher has deprecated; header validation uses IEEE 1752.1 (`metadata/header-1.0.json`). See `tests/test_schema_coverage.py` for the authoritative list of implemented schemas.

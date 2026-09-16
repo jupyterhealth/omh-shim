@@ -7,8 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.0.0] — 2026-09-07
-
 ### Changed (BREAKING)
 
 - Body schemas now resolve **IEEE 1752 first, Open mHealth second**, and
@@ -57,19 +55,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   IEEE 1752 nor Open mHealth publishes an HRV body schema. omh-shim no longer
   emits any non-standard schema; the `local:` namespace is gone.
 
-### Changed
-
-- The weekly adoption checker is renamed `tools/check_ieee_adoption.py` ->
-  `tools/check_schema_adoption.py` and gains the primary signal it was missing:
-  every `omh:` id in `known_ids()` — resolved and served-only — is fetched from
-  `openmhealth/schemas` at `main` and reported as `DEPRECATED` when upstream
-  carries a `deprecation` block. A deprecation on a served-only schema whose
-  declared successor is vendored as a live (non-deprecated) schema is expected
-  and reported as ok, so the four schemas listed under Added do not open an
-  issue every week. The IEEE ADOPT/NEWER check stays as the secondary signal,
-  and the two sources now run and fail independently — an IEEE outage no longer
-  discards the Open mHealth result.
-
 ### Why these two moved (the publisher said so)
 
 Neither change is a semantic judgment by omh-shim. Open mHealth ships a
@@ -103,6 +88,17 @@ lands on `ieee:total-sleep-time:1.0`.
   downstream consumers still validate historical records against them.
 - Vendored IEEE's `descriptive-statistic-1.0` under `schemas/utility/ieee/`,
   alongside the Open mHealth schema of the same filename.
+- `tools/check_schema_adoption.py`, run weekly by the `schema-drift-check`
+  workflow, watches the two upstream signals that can invalidate a resolved id.
+  Primary: every `omh:` id in `known_ids()` — resolved and served-only — is
+  fetched from `openmhealth/schemas` at `main` and reported as `DEPRECATED`
+  when upstream carries a `deprecation` block. A deprecation on a served-only
+  schema whose declared successor is vendored as a live (non-deprecated) schema
+  is expected and reported as ok, so the four Open mHealth schemas above do not
+  open an issue every week. Secondary: whether IEEE 1752.1 has published a
+  measure omh-shim still resolves to OMH (`ADOPT`) or a newer version of one it
+  already resolves to IEEE (`NEWER`). The two sources run and fail
+  independently — an IEEE outage does not discard the Open mHealth result.
 
 ### Fixed
 
