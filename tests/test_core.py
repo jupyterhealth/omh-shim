@@ -144,8 +144,8 @@ NAIVE_CASES = [
      "bedtime_end": "2026-04-10T06:00:00"}),
     ("ow_normalized", "heart_rate", {"timestamp": "2026-04-09T08:30:00",
      "type": "heart_rate", "value": 72}),
-    ("ow_normalized", "sleep_episode", {"bedtime_start": "2026-04-09T22:00:00",
-     "bedtime_end": "2026-04-10T06:00:00"}),
+    ("ow_normalized", "sleep_episode", {"start_time": "2026-04-09T22:00:00",
+     "end_time": "2026-04-10T06:00:00"}),
 ]
 
 
@@ -589,9 +589,9 @@ def test_sleep_duration_emits_ieee_field_name():
 @pytest.mark.parametrize("source,sample", [
     ("oura_raw", {"bedtime_start": "2026-04-09T22:30:00Z",
                   "bedtime_end": "2026-04-10T06:45:00Z", "efficiency": 92.5}),
-    ("ow_normalized", {"bedtime_start": "2026-04-09T22:30:00Z",
-                       "bedtime_end": "2026-04-10T06:45:00Z",
-                       "sleep_efficiency_score": 92.5}),
+    ("ow_normalized", {"start_time": "2026-04-09T22:30:00Z",
+                       "end_time": "2026-04-10T06:45:00Z",
+                       "efficiency_percent": 92.5}),
 ])
 def test_sleep_episode_uses_ieee_efficiency_field(source, sample):
     """IEEE has no additionalProperties:false, so validation alone can't catch

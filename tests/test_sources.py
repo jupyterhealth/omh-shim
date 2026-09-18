@@ -95,6 +95,32 @@ def test_ow_physical_activity_omits_optional_fields_when_absent():
     assert body["activity_name"] == "daily activity summary"
 
 
+def test_ow_sleep_episode_null_stages_omits_stage_fields():
+    """OW serialises ``stages: null`` when a provider reports no staging."""
+    sample = {
+        "start_time": "2026-04-09T22:30:00Z",
+        "end_time": "2026-04-10T06:45:00Z",
+        "stages": None,
+        "is_nap": False,
+    }
+    body = convert(source="ow_normalized", data_type="sleep_episode", sample=sample)["body"]
+    for key in ("light_sleep_duration", "deep_sleep_duration", "rem_sleep_duration",
+                "wake_after_sleep_onset"):
+        assert key not in body
+    assert body["is_main_sleep"] is True
+
+
+def test_ow_sleep_episode_nap_is_not_main_sleep():
+    sample = {
+        "start_time": "2026-04-09T13:00:00Z",
+        "end_time": "2026-04-09T13:45:00Z",
+        "sleep_duration_seconds": 2400,
+        "is_nap": True,
+    }
+    result = convert(source="ow_normalized", data_type="sleep_episode", sample=sample)
+    assert result["body"]["is_main_sleep"] is False
+
+
 def test_ow_blood_glucose_matches_expected():
     """blood_glucose is ow_normalized-only, so it cannot join the SOURCES cross product."""
     fixture_dir = FIXTURES / "ow_normalized"

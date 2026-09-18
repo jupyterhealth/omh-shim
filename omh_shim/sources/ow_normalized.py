@@ -31,27 +31,28 @@ def sleep_duration(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str,
     }
 
 
+def _session_interval(sample: Mapping[str, Any]) -> dict[str, Any]:
+    """effective_time_frame for an OW SleepSession (start_time/end_time carry offsets)."""
+    return {"time_interval": interval_from_bounds(sample["start_time"], sample["end_time"])}
+
+
+def _is_main_sleep(sample: Mapping[str, Any]) -> bool:
+    # OW always serialises is_nap (default false), so the flag is always emitted.
+    return not bool(sample.get("is_nap", False))
+
+
 def sleep_episode(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any]:
-    """Input: OW sleep detail with bedtime_start/end and optional fields."""
-    out: dict[str, Any] = {
-        "effective_time_frame": {
-            "time_interval": interval_from_bounds(sample["bedtime_start"], sample["bedtime_end"])
-        }
-    }
-    set_optional(
-        out, "total_sleep_time", sample, "sleep_total_duration_minutes",
-        unit="sec", cast=int, scale=60,
-    )
-    set_optional(
-        out, "wake_after_sleep_onset", sample, "sleep_awake_minutes",
-        unit="sec", cast=int, scale=60,
-    )
-    set_optional(
-        out, "sleep_efficiency_percentage", sample,
-        "sleep_efficiency_score", unit="%",
-    )
-    if (is_nap := sample.get("is_nap")) is not None:
-        out["is_main_sleep"] = not is_nap
+    """Input: OW SleepSession from ``GET /users/{id}/events/sleep``."""
+    stages = sample.get("stages") or {}
+    out: dict[str, Any] = {"effective_time_frame": _session_interval(sample)}
+    set_optional(out, "total_sleep_time", sample, "sleep_duration_seconds", unit="sec", cast=int)
+    set_optional(out, "light_sleep_duration", stages, "light_minutes", unit="sec", cast=int, scale=60)
+    set_optional(out, "deep_sleep_duration", stages, "deep_minutes", unit="sec", cast=int, scale=60)
+    set_optional(out, "rem_sleep_duration", stages, "rem_minutes", unit="sec", cast=int, scale=60)
+    # Approximation: Oura's awake time includes onset latency, and OW drops latency.
+    set_optional(out, "wake_after_sleep_onset", stages, "awake_minutes", unit="sec", cast=int, scale=60)
+    set_optional(out, "sleep_efficiency_percentage", sample, "efficiency_percent", unit="%")
+    out["is_main_sleep"] = _is_main_sleep(sample)
     return out
 
 

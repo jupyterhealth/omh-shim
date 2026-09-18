@@ -1,13 +1,14 @@
 {
-  "record_id": "abc-123",
-  "bedtime_start": "2026-04-09T22:30:00+00:00",
-  "bedtime_end": "2026-04-10T06:45:00+00:00",
-  "sleep_total_duration_minutes": 460,
-  "sleep_time_in_bed_minutes": 495,
-  "sleep_deep_minutes": 95,
-  "sleep_rem_minutes": 110,
-  "sleep_light_minutes": 255,
-  "sleep_awake_minutes": 35,
-  "is_nap": false,
-  "sleep_efficiency_score": 92.5
+  "id": "6f1c2c1e-3b0f-4b0e-9a3e-1d2f3a4b5c6d",
+  "start_time": "2026-04-09T22:30:00+00:00",
+  "end_time": "2026-04-10T06:45:00+00:00",
+  "zone_offset": "+00:00",
+  "source": {"provider": "oura", "source": "oura", "device": "Oura Gen 3", "device_type": "ring"},
+  "duration_seconds": 29700,
+  "sleep_duration_seconds": 27600,
+  "time_in_bed_seconds": 29700,
+  "efficiency_percent": 92.5,
+  "stages": {"awake_minutes": 35, "light_minutes": 255, "deep_minutes": 95, "rem_minutes": 110},
+  "sleep_stage_intervals": null,
+  "is_nap": false
 }
