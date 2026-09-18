@@ -71,6 +71,13 @@ def test_oura_sleep_episode_omits_is_main_sleep_when_type_absent():
     assert "is_main_sleep" not in body
 
 
+def test_oura_sleep_duration_rejects_deleted_record():
+    """A deleted Oura sleep must not become an Observation under any sleep-derived data type."""
+    with pytest.raises(ConversionError, match="deleted"):
+        convert(source="oura_raw", data_type="sleep_duration",
+                sample={**_OURA_SLEEP_BOUNDS, "total_sleep_duration": 2400, "type": "deleted"})
+
+
 def test_oura_physical_activity_omits_optional_fields_when_absent():
     result = convert(
         source="oura_raw",

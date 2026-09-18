@@ -32,6 +32,9 @@ _NOT_MAIN_SLEEP_TYPES = frozenset({"late_nap", "rest"})
 
 def _sleep_interval(sample: Mapping[str, Any]) -> dict[str, Any]:
     """effective_time_frame for an Oura sleep item (bedtime_start/bedtime_end)."""
+    # Every sleep-derived body starts here, so a deleted record is rejected once for all data types.
+    if sample.get("type") == "deleted":
+        raise ConversionError("oura_raw sleep record type 'deleted' is not converted")
     return {"time_interval": interval_from_bounds(sample["bedtime_start"], sample["bedtime_end"])}
 
 
@@ -44,7 +47,7 @@ def _is_main_sleep(sample: Mapping[str, Any]) -> bool | None:
         return True
     if sleep_type in _NOT_MAIN_SLEEP_TYPES:
         return False
-    # 'deleted' must not become an Observation; anything else is a value Oura has not published.
+    # 'deleted' is caught in _sleep_interval; anything here is a value Oura has not published.
     raise ConversionError(f"oura_raw sleep record type {sleep_type!r} is not converted")
 
 
