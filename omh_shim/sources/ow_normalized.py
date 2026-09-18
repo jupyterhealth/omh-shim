@@ -112,3 +112,30 @@ def body_height(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, An
         "body_height": unit_value(sample["value"], "cm"),
         "effective_time_frame": date_time_frame(sample["timestamp"]),
     }
+
+
+def time_in_bed(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any]:
+    """Input: OW SleepSession from ``GET /users/{id}/events/sleep``."""
+    seconds = require(sample, "time_in_bed_seconds", context="ow_normalized time_in_bed")
+    return {
+        "time_in_bed": unit_value(seconds, "sec", cast=int),
+        "effective_time_frame": _session_interval(sample),
+        "is_main_sleep": _is_main_sleep(sample),
+    }
+
+
+def sleep_stage_summary(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any]:
+    """Input: OW SleepSession from ``GET /users/{id}/events/sleep``."""
+    stages = sample.get("stages") or {}
+    total = require(sample, "sleep_duration_seconds", context="ow_normalized sleep_stage_summary")
+    summary: dict[str, Any] = {"total_sleep_time": unit_value(total, "sec", cast=int)}
+    set_optional(summary, "light_sleep_duration", stages, "light_minutes", unit="sec", cast=int, scale=60)
+    set_optional(summary, "deep_sleep_duration", stages, "deep_minutes", unit="sec", cast=int, scale=60)
+    set_optional(summary, "rem_sleep_duration", stages, "rem_minutes", unit="sec", cast=int, scale=60)
+    set_optional(summary, "awake_duration", stages, "awake_minutes", unit="sec", cast=int, scale=60)
+    set_optional(summary, "sleep_efficiency_percentage", sample, "efficiency_percent", unit="%")
+    return {
+        "sleep_stage_summary": summary,
+        "effective_time_frame": _session_interval(sample),
+        "is_main_sleep": _is_main_sleep(sample),
+    }

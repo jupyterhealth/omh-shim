@@ -27,6 +27,8 @@ DATA_TYPES = [
     "respiratory_rate",
     "body_weight",
     "body_height",
+    "time_in_bed",
+    "sleep_stage_summary",
 ]
 SOURCES = ["oura_raw", "ow_normalized"]
 
@@ -183,3 +185,37 @@ def test_body_height_units_follow_the_source():
                    sample={"height": 1.78, "timestamp": "2026-04-10T07:00:00Z"})
     assert ow["body"]["body_height"]["unit"] == "cm"
     assert oura["body"]["body_height"]["unit"] == "m"
+
+
+_OW_SESSION_BOUNDS = {
+    "start_time": "2026-04-09T22:30:00Z",
+    "end_time": "2026-04-10T06:45:00Z",
+}
+
+
+@pytest.mark.parametrize("source,sample", [
+    ("ow_normalized", {**_OW_SESSION_BOUNDS, "time_in_bed_seconds": None}),
+    ("oura_raw", {**_OURA_SLEEP_BOUNDS, "time_in_bed": None}),
+])
+def test_time_in_bed_requires_the_duration(source, sample):
+    with pytest.raises(ConversionError, match="time_in_bed"):
+        convert(source=source, data_type="time_in_bed", sample=sample)
+
+
+@pytest.mark.parametrize("source,sample", [
+    ("ow_normalized", {**_OW_SESSION_BOUNDS, "sleep_duration_seconds": 27600, "stages": None}),
+    ("oura_raw", {**_OURA_SLEEP_BOUNDS, "total_sleep_duration": 27600}),
+])
+def test_sleep_stage_summary_validates_without_stage_fields(source, sample):
+    """Only total_sleep_time is schema-required; a provider with no staging still converts."""
+    body = convert(source=source, data_type="sleep_stage_summary", sample=sample)["body"]
+    assert set(body["sleep_stage_summary"]) == {"total_sleep_time"}
+
+
+@pytest.mark.parametrize("source,sample", [
+    ("ow_normalized", {**_OW_SESSION_BOUNDS, "sleep_duration_seconds": None}),
+    ("oura_raw", {**_OURA_SLEEP_BOUNDS, "total_sleep_duration": None}),
+])
+def test_sleep_stage_summary_requires_total_sleep_time(source, sample):
+    with pytest.raises(ConversionError):
+        convert(source=source, data_type="sleep_stage_summary", sample=sample)

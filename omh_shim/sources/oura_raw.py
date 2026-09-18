@@ -150,3 +150,34 @@ def body_height(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, An
         "body_height": unit_value(require(sample, "height", context="oura_raw body_height"), "m"),
         "effective_time_frame": date_time_frame(_profile_timestamp(sample, "body_height")),
     }
+
+
+def time_in_bed(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any]:
+    """Input: Oura sleep/data[i]; ``time_in_bed`` is seconds."""
+    seconds = require(sample, "time_in_bed", context="oura_raw time_in_bed")
+    out: dict[str, Any] = {
+        "time_in_bed": unit_value(seconds, "sec", cast=int),
+        "effective_time_frame": _sleep_interval(sample),
+    }
+    if (is_main := _is_main_sleep(sample)) is not None:
+        out["is_main_sleep"] = is_main
+    return out
+
+
+def sleep_stage_summary(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any]:
+    """Input: Oura sleep/data[i]; stage durations are seconds."""
+    total = require(sample, "total_sleep_duration", context="oura_raw sleep_stage_summary")
+    summary: dict[str, Any] = {"total_sleep_time": unit_value(total, "sec", cast=int)}
+    set_optional(summary, "light_sleep_duration", sample, "light_sleep_duration", unit="sec", cast=int)
+    set_optional(summary, "deep_sleep_duration", sample, "deep_sleep_duration", unit="sec", cast=int)
+    set_optional(summary, "rem_sleep_duration", sample, "rem_sleep_duration", unit="sec", cast=int)
+    set_optional(summary, "awake_duration", sample, "awake_time", unit="sec", cast=int)
+    set_optional(summary, "latency_to_sleep_onset", sample, "latency", unit="sec", cast=int)
+    set_optional(summary, "sleep_efficiency_percentage", sample, "efficiency", unit="%")
+    out: dict[str, Any] = {
+        "sleep_stage_summary": summary,
+        "effective_time_frame": _sleep_interval(sample),
+    }
+    if (is_main := _is_main_sleep(sample)) is not None:
+        out["is_main_sleep"] = is_main
+    return out

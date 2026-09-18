@@ -24,6 +24,8 @@ REGISTRY: Mapping[tuple[str, str], _Converter] = MappingProxyType({
     ("oura_raw", "respiratory_rate"):        oura_raw.respiratory_rate,
     ("oura_raw", "body_weight"):             oura_raw.body_weight,
     ("oura_raw", "body_height"):             oura_raw.body_height,
+    ("oura_raw", "time_in_bed"):             oura_raw.time_in_bed,
+    ("oura_raw", "sleep_stage_summary"):     oura_raw.sleep_stage_summary,
     ("ow_normalized", "heart_rate"):             ow_normalized.heart_rate,
     ("ow_normalized", "sleep_duration"):         ow_normalized.sleep_duration,
     ("ow_normalized", "sleep_episode"):          ow_normalized.sleep_episode,
@@ -33,6 +35,8 @@ REGISTRY: Mapping[tuple[str, str], _Converter] = MappingProxyType({
     ("ow_normalized", "respiratory_rate"):       ow_normalized.respiratory_rate,
     ("ow_normalized", "body_weight"):            ow_normalized.body_weight,
     ("ow_normalized", "body_height"):            ow_normalized.body_height,
+    ("ow_normalized", "time_in_bed"):            ow_normalized.time_in_bed,
+    ("ow_normalized", "sleep_stage_summary"):    ow_normalized.sleep_stage_summary,
 })
 
 

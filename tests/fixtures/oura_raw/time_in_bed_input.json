@@ -1,0 +1,14 @@
+{
+  "id": "abc-123",
+  "bedtime_start": "2026-04-09T22:30:00+00:00",
+  "bedtime_end": "2026-04-10T06:45:00+00:00",
+  "total_sleep_duration": 27600,
+  "time_in_bed": 29700,
+  "awake_time": 2100,
+  "deep_sleep_duration": 5700,
+  "light_sleep_duration": 15300,
+  "rem_sleep_duration": 6600,
+  "efficiency": 92.5,
+  "type": "long_sleep",
+  "latency": 540
+}

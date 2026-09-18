@@ -1,0 +1,17 @@
+{
+  "sleep_stage_summary": {
+    "total_sleep_time": {"value": 27600, "unit": "sec"},
+    "light_sleep_duration": {"value": 15300, "unit": "sec"},
+    "deep_sleep_duration": {"value": 5700, "unit": "sec"},
+    "rem_sleep_duration": {"value": 6600, "unit": "sec"},
+    "awake_duration": {"value": 2100, "unit": "sec"},
+    "sleep_efficiency_percentage": {"value": 92.5, "unit": "%"}
+  },
+  "effective_time_frame": {
+    "time_interval": {
+      "start_date_time": "2026-04-09T22:30:00Z",
+      "end_date_time": "2026-04-10T06:45:00Z"
+    }
+  },
+  "is_main_sleep": true
+}
