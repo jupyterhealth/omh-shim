@@ -121,6 +121,13 @@ def test_ow_sleep_episode_nap_is_not_main_sleep():
     assert result["body"]["is_main_sleep"] is False
 
 
+def test_ow_sleep_duration_requires_duration_minutes():
+    """ieee:total-sleep-time requires total_sleep_time; a null day cannot be converted."""
+    with pytest.raises(ConversionError, match="duration_minutes"):
+        convert(source="ow_normalized", data_type="sleep_duration",
+                sample={"date": "2026-04-09", "duration_minutes": None}, tz=UTC)
+
+
 def test_ow_blood_glucose_matches_expected():
     """blood_glucose is ow_normalized-only, so it cannot join the SOURCES cross product."""
     fixture_dir = FIXTURES / "ow_normalized"

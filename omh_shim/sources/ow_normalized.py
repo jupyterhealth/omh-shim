@@ -8,6 +8,7 @@ from omh_shim._helpers import (
     date_time_frame,
     day_interval,
     interval_from_bounds,
+    require,
     set_optional,
     unit_value,
 )
@@ -22,12 +23,13 @@ def heart_rate(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any
 
 
 def sleep_duration(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any]:
-    """Input: OW ActivitySummary with ``sleep_total_duration_minutes``."""
+    """Input: OW SleepSummary from ``GET /users/{id}/summaries/sleep``."""
+    # duration_minutes excludes naps (OW's own definition), hence is_main_sleep is fixed true.
+    minutes = require(sample, "duration_minutes", context="ow_normalized sleep_duration")
     return {
-        "total_sleep_time": unit_value(
-            sample["sleep_total_duration_minutes"] * 60, "sec", cast=int
-        ),
+        "total_sleep_time": unit_value(minutes * 60, "sec", cast=int),
         "effective_time_frame": {"time_interval": day_interval(sample["date"], tz=tz)},
+        "is_main_sleep": True,
     }
 
 

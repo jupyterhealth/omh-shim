@@ -1,6 +1,21 @@
 {
   "date": "2026-04-09",
-  "sleep_total_duration_minutes": 432,
-  "sleep_time_in_bed_minutes": 480,
-  "source": {"source_name": "Oura Ring", "device_model": "Oura Gen 3"}
+  "source": {"provider": "oura", "source": "oura", "device": "Oura Gen 3", "device_type": "ring"},
+  "start_time": "2026-04-08T22:30:00+00:00",
+  "end_time": "2026-04-09T06:45:00+00:00",
+  "zone_offset": "+00:00",
+  "duration_minutes": 432,
+  "total_duration_minutes": 462,
+  "time_in_bed_minutes": 480,
+  "efficiency_percent": 90.0,
+  "stages": {"awake_minutes": 48, "light_minutes": 240, "deep_minutes": 90, "rem_minutes": 102},
+  "interruptions_count": 3,
+  "nap_count": 1,
+  "nap_duration_minutes": 30,
+  "sessions": null,
+  "avg_heart_rate_bpm": 58,
+  "avg_hrv_sdnn_ms": null,
+  "avg_hrv_rmssd_ms": 42.0,
+  "avg_respiratory_rate": 14.2,
+  "avg_spo2_percent": 96.5
 }

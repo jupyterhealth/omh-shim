@@ -106,7 +106,7 @@ DAILY_CASES = [
     ("oura_raw", "physical_activity", {"day": "2026-04-09"}),
     ("oura_raw", "oxygen_saturation", {"day": "2026-04-09", "spo2_percentage": {"average": 96.5}}),
     ("ow_normalized", "physical_activity", {"date": "2026-04-09"}),
-    ("ow_normalized", "sleep_duration", {"date": "2026-04-09", "sleep_total_duration_minutes": 480}),
+    ("ow_normalized", "sleep_duration", {"date": "2026-04-09", "duration_minutes": 480}),
 ]
 
 
@@ -207,7 +207,7 @@ def test_oura_heart_rate_preserves_fractional_bpm():
 def test_ow_sleep_duration_fractional_minutes():
     """32.5 minutes -> 1950 seconds (not 1920 from int-then-scale)."""
     result = convert(source="ow_normalized", data_type="sleep_duration",
-                     sample={"date": "2026-04-09", "sleep_total_duration_minutes": 32.5},
+                     sample={"date": "2026-04-09", "duration_minutes": 32.5},
                      tz=UTC)
     assert result["body"]["total_sleep_time"]["value"] == 1950
 
