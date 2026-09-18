@@ -30,11 +30,15 @@ This document covers the **body** content of each converter. For the IEEE 1752.1
 | `bedtime_start` | `effective_time_frame.time_interval.start_date_time` | ISO-8601 | |
 | `bedtime_end` | `effective_time_frame.time_interval.end_date_time` | ISO-8601 | |
 
+### Endpoint-specific handling
+
+- **A `deleted` record raises `ConversionError`.** The check lives in the shared sleep interval helper, so every sleep-derived data type rejects it; a deleted record must not become an observation.
+
 ### Not mapped (gaps)
 
 | Oura field | Reason |
 |---|---|
-| `time_in_bed` | `ieee:total-sleep-time:1.0` covers total sleep time, not time in bed. Could map to IEEE `time-in-bed:1.0` in the future. |
+| `time_in_bed` | Own schema; see `time_in_bed` |
 
 ---
 
@@ -47,24 +51,26 @@ This document covers the **body** content of each converter. For the IEEE 1752.1
 | `bedtime_start` | `effective_time_frame.time_interval.start_date_time` | ISO-8601 | Required |
 | `bedtime_end` | `effective_time_frame.time_interval.end_date_time` | ISO-8601 | Required |
 | `total_sleep_duration` | `total_sleep_time.value` | int | sec; optional |
+| `light_sleep_duration` | `light_sleep_duration.value` | int | sec; optional |
+| `deep_sleep_duration` | `deep_sleep_duration.value` | int | sec; optional |
+| `rem_sleep_duration` | `rem_sleep_duration.value` | int | sec; optional |
 | `awake_time` | `wake_after_sleep_onset.value` | int | sec; optional |
 | `latency` | `latency_to_sleep_onset.value` | int | sec; optional |
 | `efficiency` | `sleep_efficiency_percentage.value` | float | %; optional |
-| `type` | `is_main_sleep` | bool | `"nap"` → false, everything else → true; optional |
+| `type` | `is_main_sleep` | bool | Oura `PublicSleepType`: `sleep`, `long_sleep` → `true`; `late_nap`, `rest` → `false`; `deleted` raises `ConversionError` for every sleep-derived data type (a deleted record must not become an observation); absent → field omitted |
 
 ### Endpoint-specific handling
 
 - **Optional fields omitted when absent.** Only `effective_time_frame` is schema-required. All other fields are set only if the Oura sample contains them with a non-None value.
-- **Nap detection.** Oura's `long_sleep` and `short_sleep` are both main sleep. Only `nap` sets `is_main_sleep` to false.
+- **Main sleep follows Oura's `PublicSleepType`.** Oura v2 (OpenAPI 1.39) enumerates `deleted | sleep | long_sleep | late_nap | rest`. There is no `nap` value; `late_nap` and `rest` are the non-main types.
+- **WASO is approximate.** `awake_time` is all awake time in bed and includes the `latency` Oura also reports separately.
 
 ### Not mapped (gaps)
 
 | Oura field | Reason |
 |---|---|
-| `deep_sleep_duration` | `ieee:sleep-episode:1.0` has `deep_sleep_duration`, `light_sleep_duration`, and `rem_sleep_duration` fields, but the converter does not populate them yet. |
-| `light_sleep_duration` | Same — schema supports it, converter doesn't map it yet |
-| `rem_sleep_duration` | Same — schema supports it, converter doesn't map it yet |
-| `time_in_bed` | Separate concept from sleep episode timing |
+| `time_in_bed` | Own schema; see `time_in_bed` |
+| `restless_periods` | Oura's restless periods are not IEEE's `number_of_awakenings` |
 | `heart_rate` (nested object) | Contains time-series data. dicristea maps to IEEE `heart-rate:1.0` as a data-series record. Out of scope. |
 | `average_heart_rate` | Summary statistic; dicristea maps to `omh:heart-rate:2.0` with `descriptive_statistic: "average"`. Out of scope. |
 | `lowest_heart_rate` | Same, with `descriptive_statistic: "minimum"`. Out of scope. |

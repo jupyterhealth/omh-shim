@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `ow_normalized.sleep_episode` and `ow_normalized.sleep_duration` now read the shapes
+  Open Wearables actually serves (`SleepSession` from `/events/sleep`, `SleepSummary`
+  from `/summaries/sleep`). They previously read `bedtime_start`,
+  `sleep_total_duration_minutes`, `sleep_awake_minutes` and `sleep_efficiency_score` —
+  Oura raw field names plus OW's *internal* column names — which the OW HTTP API has
+  never emitted at any revision, so every real response raised `ConversionError`. The
+  old input shape is dropped rather than tolerated. Filed as a fix, not a breaking
+  change: the documented contract for this source is "OW read-API shapes", and no
+  conforming caller could have existed. Output schema ids are unchanged.
+- `oura_raw.sleep_episode` sets `is_main_sleep` from Oura's real `PublicSleepType`
+  enum (`sleep`, `long_sleep` → main; `late_nap`, `rest` → not main; `deleted` raises).
+  It tested `type != "nap"`, a value Oura v2 does not publish, so a late nap was filed
+  as main sleep.
+- Both `sleep_episode` converters now emit `light_sleep_duration`,
+  `deep_sleep_duration` and `rem_sleep_duration`, which the inputs already carried.
+
 ## [2.0.0] — 2026-09-16
 
 ### Changed (BREAKING)

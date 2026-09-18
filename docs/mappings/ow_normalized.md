@@ -1,6 +1,6 @@
 # Open Wearables Normalized → Open mHealth Mapping Reference
 
-Source: Open Wearables (OW) read API — `GET /api/v1/external/users/{id}/timeseries` and `GET /api/v1/external/users/{id}/summaries`.
+Source: Open Wearables (OW) read API, 0.9.0 — `GET /api/v1/users/{id}/timeseries`, `.../events/sleep`, `.../events/workouts`, `.../summaries/activity`, `.../summaries/sleep`.
 Converter module: `omh_shim/sources/ow_normalized.py`.
 
 OW normalizes data from multiple device vendors (Oura, Fitbit, etc.) into a common schema before serving it through the read API. The field names below reflect OW's normalized shapes, not any vendor's raw format.
@@ -31,48 +31,63 @@ This document covers the **body** content of each converter. For the IEEE 1752.1
 
 ## sleep_duration → `ieee:total-sleep-time:1.0`
 
-**OW shape:** `ActivitySummary` (sleep fields)
+**OW shape:** `SleepSummary` (`GET /users/{id}/summaries/sleep`)
 
-| OW field | OMH field | Type | Notes |
+| OW field | Body field | Type | Notes |
 |---|---|---|---|
-| `sleep_total_duration_minutes` | `total_sleep_time.value` | int | Converted to seconds (×60). Scale applied before int cast to preserve fractional-minute precision. |
+| `duration_minutes` | `total_sleep_time.value` | int | Required. Seconds (×60), scale applied before the int cast. OW defines it as total sleep **excluding naps**. |
 | `date` | `effective_time_frame.time_interval` | day interval | Requires `tz` |
+| (constant) | `is_main_sleep` | bool | Always `true`, because `duration_minutes` excludes naps |
+
+### Endpoint-specific handling
+
+- **Daily, not per-episode.** The frame is the calendar day in `tz`, not the session bounds: `start_time`/`end_time` are optional in `SleepSummary` (null on a day with no main sleep) and describe only the longest session. `oura_raw.sleep_duration` uses episode bounds because its input is an episode; the two sources differ on purpose.
+- **A null `duration_minutes` raises `ConversionError`.** IEEE requires `total_sleep_time`.
 
 ### Not mapped
 
 | OW field | Reason |
 |---|---|
-| `sleep_time_in_bed_minutes` | `ieee:total-sleep-time:1.0` covers total sleep time, not time in bed |
+| `total_duration_minutes` | Includes naps; IEEE total-sleep-time is per-episode with an `is_main_sleep` flag, and a nap-inclusive total has no honest value for that flag |
+| `time_in_bed_minutes` | Own schema; see `time_in_bed` |
+| `efficiency_percent`, `stages`, `avg_*` | No field on `ieee:total-sleep-time:1.0`; carried by `sleep_episode` / `sleep_stage_summary` |
+| `interruptions_count` | `sleep_events` wants intervals, not a count |
+| `start_time`, `end_time`, `zone_offset`, `sessions`, `nap_*` | See "Daily, not per-episode" |
 
 ---
 
 ## sleep_episode → `ieee:sleep-episode:1.0`
 
-**OW shape:** Sleep detail object
+**OW shape:** `SleepSession` (`GET /users/{id}/events/sleep`)
 
 | OW field | Body field | Type | Notes |
 |---|---|---|---|
-| `bedtime_start` | `effective_time_frame.time_interval.start_date_time` | ISO-8601 | Required |
-| `bedtime_end` | `effective_time_frame.time_interval.end_date_time` | ISO-8601 | Required |
-| `sleep_total_duration_minutes` | `total_sleep_time.value` | int | sec (×60); optional |
-| `sleep_awake_minutes` | `wake_after_sleep_onset.value` | int | sec (×60); optional |
-| `sleep_efficiency_score` | `sleep_efficiency_percentage.value` | float | %; optional |
-| `is_nap` | `is_main_sleep` | bool | Inverted: `is_nap=true` → `is_main_sleep=false` |
+| `start_time` | `effective_time_frame.time_interval.start_date_time` | ISO-8601 | Required; OW serialises with an offset |
+| `end_time` | `effective_time_frame.time_interval.end_date_time` | ISO-8601 | Required |
+| `sleep_duration_seconds` | `total_sleep_time.value` | int | sec; optional |
+| `stages.light_minutes` | `light_sleep_duration.value` | int | sec (×60); optional; `stages` may be `null` |
+| `stages.deep_minutes` | `deep_sleep_duration.value` | int | sec (×60); optional |
+| `stages.rem_minutes` | `rem_sleep_duration.value` | int | sec (×60); optional |
+| `stages.awake_minutes` | `wake_after_sleep_onset.value` | int | sec (×60); optional; **approximation**, see below |
+| `efficiency_percent` | `sleep_efficiency_percentage.value` | float | %; optional |
+| `is_nap` | `is_main_sleep` | bool | Inverted; OW always serialises `is_nap` (default `false`), so the flag is always emitted |
 
 ### Endpoint-specific handling
 
-- **Minutes → seconds.** OW reports sleep durations in minutes; OMH requires seconds. The ×60 scaling is applied before the int cast so fractional minutes preserve precision (e.g., 32.5 min → 1950 sec, not 1920).
-- **Optional fields omitted when absent.** Only `effective_time_frame` is schema-required.
+- **WASO is approximate.** Oura's awake time is all awake time in bed, including sleep-onset latency, and OW drops Oura's `latency`. True wake-after-sleep-onset is not derivable from the OW response.
+- **Minutes → seconds.** The ×60 scaling is applied before the int cast (32.5 min → 1950 sec).
+- **Same `SleepSession` feeds three data types.** `sleep_stage_summary` and `time_in_bed` read the same object; one fetch, one observation per IEEE measure.
 
-### Not mapped (gaps)
+### Not mapped
 
 | OW field | Reason |
 |---|---|
-| `sleep_deep_minutes` | `ieee:sleep-episode:1.0` has a per-stage breakdown, but the converter does not populate it yet |
-| `sleep_rem_minutes` | Same — schema supports it, converter doesn't map it yet |
-| `sleep_light_minutes` | Same — schema supports it, converter doesn't map it yet |
-| `sleep_time_in_bed_minutes` | Separate concept from the episode's time interval |
-| `record_id` | OW internal identifier; not health data |
+| `id` | Stable per-session UUID; an identifier for the caller's dedup, not health data |
+| `duration_seconds` | Derivable from the interval |
+| `time_in_bed_seconds` | Own schema; see `time_in_bed` |
+| `zone_offset` | The timestamps already carry the offset |
+| `source` | Device metadata; feeds the header's `external_datasheets` |
+| `sleep_stage_intervals` | Only returned with `include=stages`; no consumer asks yet |
 
 ---
 
