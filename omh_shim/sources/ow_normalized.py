@@ -12,6 +12,7 @@ from omh_shim._helpers import (
     set_optional,
     unit_value,
 )
+from omh_shim.errors import ConversionError
 
 
 def heart_rate(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any]:
@@ -62,10 +63,10 @@ def sleep_episode(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, 
     return out
 
 
-def physical_activity(
-    sample: Mapping[str, Any], *, tz: tzinfo | None
-) -> dict[str, Any]:
-    """Input: OW ActivitySummary with optional distance/calories."""
+_OW_INTENSITY = {"low": "light", "moderate": "moderate", "high": "vigorous"}
+
+
+def _daily_summary(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any]:
     out: dict[str, Any] = {
         "activity_name": "daily activity summary",
         "effective_time_frame": {"time_interval": day_interval(sample["date"], tz=tz)},
@@ -73,7 +74,44 @@ def physical_activity(
     set_optional(out, "distance", sample, "distance_meters", unit="m")
     set_optional(out, "kcal_burned", sample, "active_calories_kcal", unit="kcal")
     set_optional(out, "base_movement_quantity", sample, "steps", unit="steps", cast=int)
+    set_optional(out, "duration", sample, "active_minutes", unit="min", cast=int)
+    intensity = sample.get("intensity_minutes") or {}
+    set_optional(out, "duration_light_activity", intensity, "light", unit="min", cast=int)
+    set_optional(out, "duration_moderate_activity", intensity, "moderate", unit="min", cast=int)
+    set_optional(out, "duration_vigorous_activity", intensity, "vigorous", unit="min", cast=int)
     return out
+
+
+def _workout(sample: Mapping[str, Any]) -> dict[str, Any]:
+    out: dict[str, Any] = {
+        "activity_name": sample["type"],
+        "effective_time_frame": {
+            "time_interval": interval_from_bounds(sample["start_time"], sample["end_time"])
+        },
+    }
+    set_optional(out, "duration", sample, "duration_seconds", unit="sec", cast=int)
+    set_optional(out, "distance", sample, "distance_meters", unit="m")
+    set_optional(out, "kcal_burned", sample, "calories_kcal", unit="kcal")
+    set_optional(out, "base_movement_quantity", sample, "steps_count", unit="steps", cast=int)
+    intensity = sample.get("intensity")
+    # IEEE's enum is light|moderate|vigorous; OW's unknown has no home and is dropped.
+    if intensity is not None and (level := _OW_INTENSITY.get(intensity)) is not None:
+        out["reported_activity_intensity"] = level
+    return out
+
+
+def physical_activity(
+    sample: Mapping[str, Any], *, tz: tzinfo | None
+) -> dict[str, Any]:
+    """Input: OW ActivitySummary (has ``date``; needs ``tz``) or OW Workout (has ``start_time``/``end_time``)."""
+    if "start_time" in sample and "end_time" in sample:
+        return _workout(sample)
+    if "date" in sample:
+        return _daily_summary(sample, tz=tz)
+    raise ConversionError(
+        "ow_normalized physical_activity expects an ActivitySummary (with 'date') "
+        "or a Workout (with 'start_time' and 'end_time')"
+    )
 
 
 def oxygen_saturation(

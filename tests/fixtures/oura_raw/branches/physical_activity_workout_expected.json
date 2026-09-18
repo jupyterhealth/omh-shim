@@ -1,0 +1,12 @@
+{
+  "activity_name": "running",
+  "effective_time_frame": {
+    "time_interval": {
+      "start_date_time": "2026-04-09T07:00:00Z",
+      "end_date_time": "2026-04-09T07:45:00Z"
+    }
+  },
+  "distance": {"value": 7500.0, "unit": "m"},
+  "kcal_burned": {"value": 410.0, "unit": "kcal"},
+  "reported_activity_intensity": "vigorous"
+}

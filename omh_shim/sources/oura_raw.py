@@ -84,10 +84,10 @@ def sleep_episode(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, 
     return out
 
 
-def physical_activity(
-    sample: Mapping[str, Any], *, tz: tzinfo | None
-) -> dict[str, Any]:
-    """Input: ``{"day": "2026-04-09", "active_calories": 342, ...}``"""
+_OURA_INTENSITY = {"easy": "light", "moderate": "moderate", "hard": "vigorous"}
+
+
+def _daily_activity(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any]:
     out: dict[str, Any] = {
         "activity_name": "daily activity summary",
         "effective_time_frame": {"time_interval": day_interval(sample["day"], tz=tz)},
@@ -95,7 +95,41 @@ def physical_activity(
     set_optional(out, "distance", sample, "equivalent_walking_distance", unit="m")
     set_optional(out, "kcal_burned", sample, "active_calories", unit="kcal")
     set_optional(out, "base_movement_quantity", sample, "steps", unit="steps", cast=int)
+    # Oura's low/medium/high are its own activity classes, reported in seconds.
+    set_optional(out, "duration_light_activity", sample, "low_activity_time", unit="sec", cast=int)
+    set_optional(out, "duration_moderate_activity", sample, "medium_activity_time", unit="sec", cast=int)
+    set_optional(out, "duration_vigorous_activity", sample, "high_activity_time", unit="sec", cast=int)
     return out
+
+
+def _workout(sample: Mapping[str, Any]) -> dict[str, Any]:
+    out: dict[str, Any] = {
+        "activity_name": sample["activity"],
+        "effective_time_frame": {
+            "time_interval": interval_from_bounds(sample["start_datetime"], sample["end_datetime"])
+        },
+    }
+    set_optional(out, "distance", sample, "distance", unit="m")
+    set_optional(out, "kcal_burned", sample, "calories", unit="kcal")
+    intensity = sample.get("intensity")
+    if intensity is not None and (level := _OURA_INTENSITY.get(intensity)) is not None:
+        out["reported_activity_intensity"] = level
+    return out
+
+
+def physical_activity(
+    sample: Mapping[str, Any], *, tz: tzinfo | None
+) -> dict[str, Any]:
+    """Input: Oura daily_activity item (has ``day``; needs ``tz``) or workout item (has ``activity`` + ``start_datetime``)."""
+    # A workout item also carries ``day``, so the workout check runs first.
+    if "activity" in sample and "start_datetime" in sample:
+        return _workout(sample)
+    if "day" in sample:
+        return _daily_activity(sample, tz=tz)
+    raise ConversionError(
+        "oura_raw physical_activity expects a daily_activity item (with 'day') "
+        "or a workout item (with 'activity' and 'start_datetime')"
+    )
 
 
 def oxygen_saturation(

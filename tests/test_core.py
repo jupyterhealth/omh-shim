@@ -146,6 +146,10 @@ NAIVE_CASES = [
      "type": "heart_rate", "value": 72}),
     ("ow_normalized", "sleep_episode", {"start_time": "2026-04-09T22:00:00",
      "end_time": "2026-04-10T06:00:00"}),
+    ("ow_normalized", "physical_activity", {"type": "running",
+     "start_time": "2026-04-09T07:00:00", "end_time": "2026-04-09T07:45:00"}),
+    ("oura_raw", "physical_activity", {"activity": "running",
+     "start_datetime": "2026-04-09T07:00:00", "end_datetime": "2026-04-09T07:45:00"}),
 ]
 
 

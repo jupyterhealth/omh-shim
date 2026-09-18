@@ -84,16 +84,12 @@ def test_oura_sleep_duration_rejects_deleted_record():
 
 
 def test_oura_physical_activity_omits_optional_fields_when_absent():
-    result = convert(
-        source="oura_raw",
-        data_type="physical_activity",
-        sample={"day": "2026-04-09"},
-        tz=UTC,
-    )
+    result = convert(source="oura_raw", data_type="physical_activity",
+                     sample={"day": "2026-04-09"}, tz=UTC)
     body = result["body"]
-    assert "distance" not in body
-    assert "kcal_burned" not in body
-    assert "base_movement_quantity" not in body
+    for key in ("distance", "kcal_burned", "base_movement_quantity", "duration_light_activity",
+                "duration_moderate_activity", "duration_vigorous_activity"):
+        assert key not in body
 
 
 def test_oura_oxygen_saturation_rejects_missing_spo2_percentage():
@@ -110,16 +106,12 @@ def test_oura_oxygen_saturation_rejects_flat_value():
 
 
 def test_ow_physical_activity_omits_optional_fields_when_absent():
-    result = convert(
-        source="ow_normalized",
-        data_type="physical_activity",
-        sample={"date": "2026-04-09"},
-        tz=UTC,
-    )
+    result = convert(source="ow_normalized", data_type="physical_activity",
+                     sample={"date": "2026-04-09"}, tz=UTC)
     body = result["body"]
-    assert "distance" not in body
-    assert "kcal_burned" not in body
-    assert "base_movement_quantity" not in body
+    for key in ("distance", "kcal_burned", "base_movement_quantity", "duration",
+                "duration_light_activity", "duration_moderate_activity", "duration_vigorous_activity"):
+        assert key not in body
     assert body["activity_name"] == "daily activity summary"
 
 
@@ -249,3 +241,25 @@ def test_oura_heart_rate_sleep_record_requires_lowest_heart_rate():
     with pytest.raises(ConversionError, match="lowest_heart_rate"):
         convert(source="oura_raw", data_type="heart_rate",
                 sample={**_OURA_SLEEP_BOUNDS, "lowest_heart_rate": None})
+
+
+@pytest.mark.parametrize("source", SOURCES)
+def test_physical_activity_workout_branch_matches_expected(source):
+    """A workout needs no tz: its frame is the session interval, not a calendar day."""
+    sample, expected = _load_pair(source, "physical_activity_workout", "branches")
+    result = convert(source=source, data_type="physical_activity", sample=sample)
+    assert result["body"] == expected
+
+
+@pytest.mark.parametrize("source", SOURCES)
+def test_physical_activity_rejects_unrecognised_shape(source):
+    with pytest.raises(ConversionError, match="physical_activity"):
+        convert(source=source, data_type="physical_activity", sample={"steps": 100}, tz=UTC)
+
+
+@pytest.mark.parametrize("source,intensity", [("ow_normalized", "unknown"), ("ow_normalized", None)])
+def test_ow_workout_unknown_intensity_is_omitted(source, intensity):
+    sample, _ = _load_pair(source, "physical_activity_workout", "branches")
+    body = convert(source=source, data_type="physical_activity",
+                   sample={**sample, "intensity": intensity})["body"]
+    assert "reported_activity_intensity" not in body
