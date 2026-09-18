@@ -26,30 +26,49 @@ def heart_rate(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any
     }
 
 
+_MAIN_SLEEP_TYPES = frozenset({"sleep", "long_sleep"})
+_NOT_MAIN_SLEEP_TYPES = frozenset({"late_nap", "rest"})
+
+
+def _sleep_interval(sample: Mapping[str, Any]) -> dict[str, Any]:
+    """effective_time_frame for an Oura sleep item (bedtime_start/bedtime_end)."""
+    return {"time_interval": interval_from_bounds(sample["bedtime_start"], sample["bedtime_end"])}
+
+
+def _is_main_sleep(sample: Mapping[str, Any]) -> bool | None:
+    """Oura v2 ``PublicSleepType`` -> is_main_sleep; ``None`` when the record has no type."""
+    sleep_type = sample.get("type")
+    if sleep_type is None:
+        return None
+    if sleep_type in _MAIN_SLEEP_TYPES:
+        return True
+    if sleep_type in _NOT_MAIN_SLEEP_TYPES:
+        return False
+    # 'deleted' must not become an Observation; anything else is a value Oura has not published.
+    raise ConversionError(f"oura_raw sleep record type {sleep_type!r} is not converted")
+
+
 def sleep_duration(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any]:
     """Input: Oura sleep/data[i] with ``total_sleep_duration`` in seconds."""
     return {
         "total_sleep_time": unit_value(sample["total_sleep_duration"], "sec", cast=int),
-        "effective_time_frame": {
-            "time_interval": interval_from_bounds(sample["bedtime_start"], sample["bedtime_end"])
-        },
+        "effective_time_frame": _sleep_interval(sample),
     }
 
 
 def sleep_episode(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any]:
-    """Input: Oura sleep/data[i]. Oura's ``long_sleep``/``short_sleep`` are
-    both main sleep; only ``nap`` is not."""
-    out: dict[str, Any] = {
-        "effective_time_frame": {
-            "time_interval": interval_from_bounds(sample["bedtime_start"], sample["bedtime_end"])
-        }
-    }
+    """Input: Oura sleep/data[i]."""
+    out: dict[str, Any] = {"effective_time_frame": _sleep_interval(sample)}
     set_optional(out, "total_sleep_time", sample, "total_sleep_duration", unit="sec", cast=int)
+    set_optional(out, "light_sleep_duration", sample, "light_sleep_duration", unit="sec", cast=int)
+    set_optional(out, "deep_sleep_duration", sample, "deep_sleep_duration", unit="sec", cast=int)
+    set_optional(out, "rem_sleep_duration", sample, "rem_sleep_duration", unit="sec", cast=int)
+    # Approximation: Oura's awake_time includes the latency it also reports separately.
     set_optional(out, "wake_after_sleep_onset", sample, "awake_time", unit="sec", cast=int)
     set_optional(out, "latency_to_sleep_onset", sample, "latency", unit="sec", cast=int)
     set_optional(out, "sleep_efficiency_percentage", sample, "efficiency", unit="%")
-    if (sleep_type := sample.get("type")) is not None:
-        out["is_main_sleep"] = sleep_type != "nap"
+    if (is_main := _is_main_sleep(sample)) is not None:
+        out["is_main_sleep"] = is_main
     return out
 
 

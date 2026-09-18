@@ -43,16 +43,32 @@ def test_converter_matches_expected(source, data_type):
 # --- source-specific edge cases ---
 
 
-def test_oura_sleep_episode_nap_is_not_main_sleep():
-    sample = {
-        "id": "nap-1",
-        "bedtime_start": "2026-04-09T13:00:00+00:00",
-        "bedtime_end": "2026-04-09T13:45:00+00:00",
-        "total_sleep_duration": 2400,
-        "type": "nap",
-    }
+_OURA_SLEEP_BOUNDS = {
+    "bedtime_start": "2026-04-09T13:00:00+00:00",
+    "bedtime_end": "2026-04-09T13:45:00+00:00",
+}
+
+
+@pytest.mark.parametrize("sleep_type,expected", [
+    ("sleep", True), ("long_sleep", True), ("late_nap", False), ("rest", False),
+])
+def test_oura_sleep_episode_is_main_sleep_follows_public_sleep_type(sleep_type, expected):
+    """Oura v2 PublicSleepType is deleted|sleep|long_sleep|late_nap|rest; there is no 'nap'."""
+    sample = {**_OURA_SLEEP_BOUNDS, "total_sleep_duration": 2400, "type": sleep_type}
     result = convert(source="oura_raw", data_type="sleep_episode", sample=sample)
-    assert result["body"]["is_main_sleep"] is False
+    assert result["body"]["is_main_sleep"] is expected
+
+
+@pytest.mark.parametrize("sleep_type", ["deleted", "nap"])
+def test_oura_sleep_episode_rejects_deleted_and_unknown_types(sleep_type):
+    with pytest.raises(ConversionError, match="type"):
+        convert(source="oura_raw", data_type="sleep_episode",
+                sample={**_OURA_SLEEP_BOUNDS, "type": sleep_type})
+
+
+def test_oura_sleep_episode_omits_is_main_sleep_when_type_absent():
+    body = convert(source="oura_raw", data_type="sleep_episode", sample=_OURA_SLEEP_BOUNDS)["body"]
+    assert "is_main_sleep" not in body
 
 
 def test_oura_physical_activity_omits_optional_fields_when_absent():

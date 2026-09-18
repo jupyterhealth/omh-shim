@@ -6,6 +6,9 @@
     }
   },
   "total_sleep_time": {"value": 27600, "unit": "sec"},
+  "light_sleep_duration": {"value": 15300, "unit": "sec"},
+  "deep_sleep_duration": {"value": 5700, "unit": "sec"},
+  "rem_sleep_duration": {"value": 6600, "unit": "sec"},
   "wake_after_sleep_onset": {"value": 2100, "unit": "sec"},
   "latency_to_sleep_onset": {"value": 540, "unit": "sec"},
   "is_main_sleep": true,

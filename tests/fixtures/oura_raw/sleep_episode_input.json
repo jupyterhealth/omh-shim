@@ -5,6 +5,9 @@
   "total_sleep_duration": 27600,
   "time_in_bed": 29700,
   "awake_time": 2100,
+  "deep_sleep_duration": 5700,
+  "light_sleep_duration": 15300,
+  "rem_sleep_duration": 6600,
   "efficiency": 92.5,
   "type": "long_sleep",
   "latency": 540
