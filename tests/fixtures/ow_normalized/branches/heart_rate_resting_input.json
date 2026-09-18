@@ -1,0 +1,9 @@
+{
+  "timestamp": "2026-04-10T06:45:00+00:00",
+  "zone_offset": "+00:00",
+  "type": "resting_heart_rate",
+  "value": 48,
+  "unit": "bpm",
+  "source": {"provider": "oura", "source": "oura", "device": "Oura Gen 3", "device_type": "ring"},
+  "is_daily_total": false
+}

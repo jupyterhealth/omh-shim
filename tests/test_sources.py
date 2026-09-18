@@ -219,3 +219,33 @@ def test_sleep_stage_summary_validates_without_stage_fields(source, sample):
 def test_sleep_stage_summary_requires_total_sleep_time(source, sample):
     with pytest.raises(ConversionError):
         convert(source=source, data_type="sleep_stage_summary", sample=sample)
+
+
+def _load_pair(source: str, stem: str, subdir: str = "") -> tuple[dict, dict]:
+    fixture_dir = FIXTURES / source / subdir
+    return (
+        json.loads((fixture_dir / f"{stem}_input.json").read_text()),
+        json.loads((fixture_dir / f"{stem}_expected.json").read_text()),
+    )
+
+
+@pytest.mark.parametrize("source", SOURCES)
+def test_heart_rate_resting_branch_matches_expected(source):
+    """Resting HR rides on heart_rate: no resting-heart-rate schema exists to resolve to."""
+    sample, expected = _load_pair(source, "heart_rate_resting", "branches")
+    result = convert(source=source, data_type="heart_rate", sample=sample)
+    assert result["body"] == expected
+
+
+@pytest.mark.parametrize("source", SOURCES)
+def test_heart_rate_plain_shape_has_no_sleep_context(source):
+    sample, _ = _load_pair(source, "heart_rate")
+    body = convert(source=source, data_type="heart_rate", sample=sample)["body"]
+    assert "temporal_relationship_to_sleep" not in body
+    assert "descriptive_statistic" not in body
+
+
+def test_oura_heart_rate_sleep_record_requires_lowest_heart_rate():
+    with pytest.raises(ConversionError, match="lowest_heart_rate"):
+        convert(source="oura_raw", data_type="heart_rate",
+                sample={**_OURA_SLEEP_BOUNDS, "lowest_heart_rate": None})

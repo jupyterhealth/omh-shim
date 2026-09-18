@@ -20,7 +20,15 @@ from omh_shim.errors import ConversionError
 
 
 def heart_rate(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any]:
-    """Input: ``{"bpm": 72, "source": "sleep", "timestamp": "...+00:00"}``"""
+    """Input: a heartrate item ``{"bpm", "source", "timestamp"}`` or a sleep item (``lowest_heart_rate``)."""
+    if "bedtime_start" in sample:
+        lowest = require(sample, "lowest_heart_rate", context="oura_raw heart_rate (sleep record)")
+        return {
+            "heart_rate": unit_value(lowest, "beats/min"),
+            "effective_time_frame": _sleep_interval(sample),
+            "temporal_relationship_to_sleep": "during sleep",
+            "descriptive_statistic": "minimum",
+        }
     return {
         "heart_rate": unit_value(sample["bpm"], "beats/min"),
         "effective_time_frame": date_time_frame(sample["timestamp"]),

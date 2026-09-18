@@ -15,11 +15,15 @@ from omh_shim._helpers import (
 
 
 def heart_rate(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any]:
-    """Input: OW TimeSeriesSample with type=heart_rate."""
-    return {
+    """Input: OW TimeSeriesSample with type=heart_rate or type=resting_heart_rate."""
+    out: dict[str, Any] = {
         "heart_rate": unit_value(sample["value"], "beats/min"),
         "effective_time_frame": date_time_frame(sample["timestamp"]),
     }
+    # OW's resting series is provider-generic; for Oura it is the per-night lowest HR during sleep.
+    if sample.get("type") == "resting_heart_rate":
+        out["temporal_relationship_to_sleep"] = "during sleep"
+    return out
 
 
 def sleep_duration(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any]:
