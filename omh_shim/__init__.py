@@ -32,6 +32,8 @@ _SCHEMA_CANDIDATES: Mapping[str, tuple[str, ...]] = MappingProxyType({
     "physical_activity": ("ieee:physical-activity:1.0",),
     "oxygen_saturation": ("omh:oxygen-saturation:2.0",),
     "blood_glucose": ("omh:blood-glucose:4.0",),
+    "respiratory_rate": ("omh:respiratory-rate:2.0",),
+    "body_weight": ("omh:body-weight:3.0",),
 })
 """data_type -> candidate schema ids. A candidate must name the same measure as
 its data_type or the successor that measure's deprecated Open mHealth schema

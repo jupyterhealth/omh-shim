@@ -28,20 +28,12 @@ SERVED_SAMPLES: dict[str, dict] = {
         "effective_time_frame": {"date_time": "2026-05-31T08:00:00Z"},
         "measurement_location": "oral",
     },
-    "omh:body-weight:3.0": {
-        "body_weight": {"value": 70.0, "unit": "kg"},
-        "effective_time_frame": {"date_time": "2026-05-31T08:00:00Z"},
-    },
     "omh:forced-expiratory-volume-1-second:1.0": {
         "forced_expiratory_volume_1_second": {"value": 3.2, "unit": "L"},
         "effective_time_frame": {"date_time": "2026-05-31T08:00:00Z"},
     },
     "omh:forced-vital-capacity:1.0": {
         "forced_vital_capacity": {"value": 4.1, "unit": "L"},
-        "effective_time_frame": {"date_time": "2026-05-31T08:00:00Z"},
-    },
-    "omh:respiratory-rate:2.0": {
-        "respiratory_rate": {"value": 16, "unit": "breaths/min"},
         "effective_time_frame": {"date_time": "2026-05-31T08:00:00Z"},
     },
     "omh:rr-interval:1.0": {
@@ -112,6 +104,8 @@ SCHEMA_STATUS: frozenset[str] = frozenset({
     "ieee_physical-activity_1-0.json",
     "ieee_sleep-episode_1-0.json",
     "ieee_total-sleep-time_1-0.json",
+    "omh_respiratory-rate_2-0.json",
+    "omh_body-weight_3-0.json",
 })
 
 # Body schemas vendored so downstream consumers (e.g. the JHE MCP server) can
@@ -120,10 +114,8 @@ SCHEMA_STATUS: frozenset[str] = frozenset({
 SERVED_NO_CONVERTER: frozenset[str] = frozenset({
     "omh_blood-pressure_4-0.json",
     "omh_body-temperature_4-0.json",
-    "omh_body-weight_3-0.json",
     "omh_forced-expiratory-volume-1-second_1-0.json",
     "omh_forced-vital-capacity_1-0.json",
-    "omh_respiratory-rate_2-0.json",
     "omh_rr-interval_1-0.json",
     "ieee_sleep-stage-summary_1-0.json",
     "ieee_time-in-bed_1-0.json",
@@ -310,7 +302,10 @@ OMH_BODIES_REFERENCING_IEEE_URI: dict[str, dict] = {
     },
     "omh:blood-pressure:4.0": SERVED_SAMPLES["omh:blood-pressure:4.0"],
     "omh:body-temperature:4.0": SERVED_SAMPLES["omh:body-temperature:4.0"],
-    "omh:body-weight:3.0": SERVED_SAMPLES["omh:body-weight:3.0"],
+    "omh:body-weight:3.0": {
+        "body_weight": {"value": 70.0, "unit": "kg"},
+        "effective_time_frame": {"date_time": "2026-05-31T08:00:00Z"},
+    },
     "omh:forced-vital-capacity:1.0": SERVED_SAMPLES["omh:forced-vital-capacity:1.0"],
     "omh:forced-expiratory-volume-1-second:1.0": SERVED_SAMPLES[
         "omh:forced-expiratory-volume-1-second:1.0"

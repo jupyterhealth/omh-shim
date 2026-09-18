@@ -12,6 +12,7 @@ from omh_shim._helpers import (
     date_time_frame,
     day_interval,
     interval_from_bounds,
+    require,
     set_optional,
     unit_value,
 )
@@ -111,4 +112,33 @@ def oxygen_saturation(
     return {
         "oxygen_saturation": unit_value(spo2_pct["average"], "%"),
         "effective_time_frame": {"time_interval": day_interval(sample["day"], tz=tz)},
+    }
+
+
+def _profile_timestamp(sample: Mapping[str, Any], data_type: str) -> Any:
+    """Oura personal_info carries no measurement time; the caller stamps one (OW stamps sync time)."""
+    timestamp = sample.get("timestamp")
+    if timestamp is None:
+        raise ConversionError(
+            f"oura_raw {data_type} requires a caller-supplied 'timestamp'; "
+            "Oura personal_info carries none"
+        )
+    return timestamp
+
+
+def respiratory_rate(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any]:
+    """Input: Oura sleep/data[i]; ``average_breath`` is the average over the sleep."""
+    breaths = require(sample, "average_breath", context="oura_raw respiratory_rate")
+    return {
+        "respiratory_rate": unit_value(breaths, "breaths/min"),
+        "effective_time_frame": _sleep_interval(sample),
+        "descriptive_statistic": "average",
+    }
+
+
+def body_weight(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any]:
+    """Input: Oura personal_info (``weight`` in kg) plus a caller-supplied ``timestamp``."""
+    return {
+        "body_weight": unit_value(require(sample, "weight", context="oura_raw body_weight"), "kg"),
+        "effective_time_frame": date_time_frame(_profile_timestamp(sample, "body_weight")),
     }

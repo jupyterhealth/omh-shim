@@ -21,12 +21,16 @@ REGISTRY: Mapping[tuple[str, str], _Converter] = MappingProxyType({
     ("oura_raw", "sleep_episode"):           oura_raw.sleep_episode,
     ("oura_raw", "physical_activity"):       oura_raw.physical_activity,
     ("oura_raw", "oxygen_saturation"):       oura_raw.oxygen_saturation,
+    ("oura_raw", "respiratory_rate"):        oura_raw.respiratory_rate,
+    ("oura_raw", "body_weight"):             oura_raw.body_weight,
     ("ow_normalized", "heart_rate"):             ow_normalized.heart_rate,
     ("ow_normalized", "sleep_duration"):         ow_normalized.sleep_duration,
     ("ow_normalized", "sleep_episode"):          ow_normalized.sleep_episode,
     ("ow_normalized", "physical_activity"):      ow_normalized.physical_activity,
     ("ow_normalized", "oxygen_saturation"):      ow_normalized.oxygen_saturation,
     ("ow_normalized", "blood_glucose"):          ow_normalized.blood_glucose,
+    ("ow_normalized", "respiratory_rate"):       ow_normalized.respiratory_rate,
+    ("ow_normalized", "body_weight"):            ow_normalized.body_weight,
 })
 
 

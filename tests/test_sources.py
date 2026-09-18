@@ -24,6 +24,8 @@ DATA_TYPES = [
     "sleep_duration",
     "sleep_episode",
     "physical_activity",
+    "respiratory_rate",
+    "body_weight",
 ]
 SOURCES = ["oura_raw", "ow_normalized"]
 
@@ -158,3 +160,15 @@ def test_ow_blood_glucose_matches_expected():
     expected = json.loads((fixture_dir / "blood_glucose_expected.json").read_text())
     result = convert(source="ow_normalized", data_type="blood_glucose", sample=sample)
     assert result["body"] == expected
+
+
+def test_oura_respiratory_rate_requires_average_breath():
+    with pytest.raises(ConversionError, match="average_breath"):
+        convert(source="oura_raw", data_type="respiratory_rate",
+                sample={**_OURA_SLEEP_BOUNDS, "average_breath": None})
+
+
+def test_oura_body_weight_requires_caller_timestamp():
+    """Oura personal_info is a profile with no measurement time; the caller stamps one."""
+    with pytest.raises(ConversionError, match="timestamp"):
+        convert(source="oura_raw", data_type="body_weight", sample={"id": "user-1", "weight": 72.5})

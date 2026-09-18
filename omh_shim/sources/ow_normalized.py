@@ -88,3 +88,19 @@ def blood_glucose(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, 
         "blood_glucose": unit_value(sample["value"], "mg/dL"),
         "effective_time_frame": date_time_frame(sample["timestamp"]),
     }
+
+
+def respiratory_rate(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any]:
+    """Input: OW TimeSeriesSample with type=respiratory_rate (OW unit ``brpm``)."""
+    return {
+        "respiratory_rate": unit_value(sample["value"], "breaths/min"),
+        "effective_time_frame": date_time_frame(sample["timestamp"]),
+    }
+
+
+def body_weight(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any]:
+    """Input: OW TimeSeriesSample with type=weight (OW unit ``kg``)."""
+    return {
+        "body_weight": unit_value(sample["value"], "kg"),
+        "effective_time_frame": date_time_frame(sample["timestamp"]),
+    }
