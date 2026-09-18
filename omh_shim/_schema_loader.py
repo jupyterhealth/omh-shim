@@ -18,7 +18,7 @@ _FILENAMES: dict[str, str] = {
     "omh:physical-activity:1.2": "data/omh_physical-activity_1-2.json",
     "omh:oxygen-saturation:2.0": "data/omh_oxygen-saturation_2-0.json",
     "omh:blood-glucose:4.0": "data/omh_blood-glucose_4-0.json",
-    # Clinical body schemas served to downstream consumers; no converters.
+    # Clinical body schemas; those without a converter are served for downstream consumers.
     "omh:blood-pressure:4.0": "data/omh_blood-pressure_4-0.json",
     "omh:body-temperature:4.0": "data/omh_body-temperature_4-0.json",
     "omh:body-height:2.0": "data/omh_body-height_2-0.json",

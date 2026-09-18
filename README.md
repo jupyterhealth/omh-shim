@@ -4,14 +4,14 @@ Convert wearable health data from vendor schemas to [IEEE 1752](https://opensour
 
 ## Status
 
-v2.0 — breaking release. Body schemas now resolve IEEE 1752 first and omh-shim never
-emits a schema its publisher has deprecated, which moved three data
-types and removed two. See [CHANGELOG.md](CHANGELOG.md) before upgrading from 1.x.
+v2.1 — both sources now cover every measure Open Wearables 0.9.0 and Oura v2 carry
+that has a live IEEE 1752 or Open mHealth schema. The 2.0 line moved three data types
+to IEEE and removed two; see [CHANGELOG.md](CHANGELOG.md) before upgrading from 1.x.
 
 ## Install
 
 ```bash
-pip install git+https://github.com/jupyterhealth/omh-shim.git@v2.0.0
+pip install git+https://github.com/jupyterhealth/omh-shim.git@v2.1.0
 ```
 
 ## Usage
@@ -97,8 +97,8 @@ fails schema validation.
 
 | `source` | `data_type` values |
 |---|---|
-| `oura_raw` | `heart_rate`, `oxygen_saturation`, `sleep_duration`, `sleep_episode`, `physical_activity` |
-| `ow_normalized` | `heart_rate`, `oxygen_saturation`, `sleep_duration`, `sleep_episode`, `physical_activity`, `blood_glucose` |
+| `oura_raw` | `heart_rate`, `oxygen_saturation`, `respiratory_rate`, `sleep_duration`, `sleep_episode`, `sleep_stage_summary`, `time_in_bed`, `physical_activity`, `body_weight`, `body_height` |
+| `ow_normalized` | `heart_rate`, `oxygen_saturation`, `respiratory_rate`, `sleep_duration`, `sleep_episode`, `sleep_stage_summary`, `time_in_bed`, `physical_activity`, `body_weight`, `body_height`, `blood_glucose` |
 
 Body schemas resolve IEEE 1752 first, Open mHealth second, and omh-shim never
 emits a schema its publisher has deprecated — where a deprecated Open mHealth
@@ -108,16 +108,20 @@ of those two standards; where neither defines a measure (heart-rate variability,
 for example) it does not convert it. Steps are carried by `physical_activity` as
 `base_movement_quantity`; there is no separate step-count data type.
 
+Two converters accept a second input shape: `heart_rate` takes a resting-heart-rate
+sample (OW `type=resting_heart_rate`, or an Oura sleep item) and tags it
+`temporal_relationship_to_sleep: "during sleep"`; `physical_activity` takes a workout
+(OW `Workout`, or an Oura workout item) as well as a daily summary. On `oura_raw`,
+`body_weight` and `body_height` need a caller-supplied `timestamp` on the sample,
+because Oura's `personal_info` carries no measurement time.
+
 ## Served schemas without a converter
 
 omh-shim also vendors body schemas that have no `convert()` converter:
 
 - Clinical Open mHealth bodies — `omh:blood-pressure:4.0`,
-  `omh:body-temperature:4.0`, `omh:body-weight:3.0`,
-  `omh:forced-expiratory-volume-1-second:1.0`, `omh:forced-vital-capacity:1.0`,
-  `omh:respiratory-rate:2.0`, `omh:rr-interval:1.0`.
-- `ieee:sleep-stage-summary:1.0`, served for downstream consumers that summarize
-  sleep stages.
+  `omh:body-temperature:4.0`, `omh:forced-expiratory-volume-1-second:1.0`,
+  `omh:forced-vital-capacity:1.0`, `omh:rr-interval:1.0`.
 - `omh:physical-activity:1.2`, `omh:sleep-episode:1.1`, `omh:step-count:3.0` and
   `omh:sleep-duration:2.0` — the Open mHealth bodies omh-shim emitted before
   2.0.0 moved them to IEEE. Open mHealth has deprecated all four, so none may be

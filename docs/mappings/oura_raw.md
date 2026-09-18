@@ -18,6 +18,17 @@ This document covers the **body** content of each converter. For the IEEE 1752.1
 | `timestamp` | `effective_time_frame.date_time` | ISO-8601 | Must include timezone offset |
 | `source` | — | dropped | Oura's context label (sleep/awake/rest), not device model. OW preserves this under its own `source` metadata when ingesting. |
 
+### Resting heart rate (sleep record)
+
+A `/v2/usercollection/sleep` item (recognised by `bedtime_start`) converts through the same function:
+
+| Oura field | OMH field | Type | Notes |
+|---|---|---|---|
+| `lowest_heart_rate` | `heart_rate.value` | float | beats/min; **required** (null raises) |
+| `bedtime_start`, `bedtime_end` | `effective_time_frame.time_interval` | ISO-8601 | The sleep episode |
+| (constant) | `temporal_relationship_to_sleep` | enum | `"during sleep"` |
+| (constant) | `descriptive_statistic` | enum | `"minimum"`: Oura documents the field as the lowest HR during sleep |
+
 ---
 
 ## sleep_duration → `ieee:total-sleep-time:1.0`
@@ -73,41 +84,45 @@ This document covers the **body** content of each converter. For the IEEE 1752.1
 | `restless_periods` | Oura's restless periods are not IEEE's `number_of_awakenings` |
 | `heart_rate` (nested object) | Contains time-series data. dicristea maps to IEEE `heart-rate:1.0` as a data-series record. Out of scope. |
 | `average_heart_rate` | Summary statistic; dicristea maps to `omh:heart-rate:2.0` with `descriptive_statistic: "average"`. Out of scope. |
-| `lowest_heart_rate` | Same, with `descriptive_statistic: "minimum"`. Out of scope. |
-| `average_breath` | dicristea maps to `omh:respiratory-rate:2.0`. Out of scope. |
+| `lowest_heart_rate` | Own data type; see `heart_rate` (resting heart rate) |
+| `average_breath` | Own data type; see `respiratory_rate` |
 | `average_hrv` | No IEEE or OMH schema defines HRV. |
 
 ---
 
 ## physical_activity → `ieee:physical-activity:1.0`
 
-**Oura endpoint:** `/v2/usercollection/daily_activity`
+Two Oura shapes convert through one function; a workout item also carries `day`, so the workout check runs first.
+
+**Oura shape A:** `/v2/usercollection/daily_activity` item (has `day`; requires `tz`)
 
 | Oura field | Body field | Type | Notes |
 |---|---|---|---|
 | (hardcoded) | `activity_name` | string | Always `"daily activity summary"` |
 | `day` | `effective_time_frame.time_interval` | day interval | Requires `tz` |
-| `equivalent_walking_distance` | `distance.value` | float | meters; optional |
+| `equivalent_walking_distance` | `distance.value` | float | m; optional |
 | `active_calories` | `kcal_burned.value` | float | kcal; optional |
-| `steps` | `base_movement_quantity.value` | int | unit: steps; optional |
+| `steps` | `base_movement_quantity.value` | int | unit `steps`; optional |
+| `low_activity_time` | `duration_light_activity.value` | int | sec; optional; Oura's own class |
+| `medium_activity_time` | `duration_moderate_activity.value` | int | sec; optional |
+| `high_activity_time` | `duration_vigorous_activity.value` | int | sec; optional |
 
-### Endpoint-specific handling
+**Oura shape B:** `/v2/usercollection/workout` item (has `activity` and `start_datetime`; `tz` ignored)
 
-- **Timezone required.** The `day` field is a bare `YYYY-MM-DD` date, so the converter needs an explicit timezone for the day bounds. A "day" in Tokyo is not a "day" in UTC.
-- **Optional fields omitted when absent.** `distance`, `kcal_burned` and `base_movement_quantity` are only set if the source field is present and non-None.
-- **Steps live here.** `ieee:physical-activity:1.0` models step count as `base_movement_quantity` (unit `steps`), which is why OMH deprecated `step-count:3.0` in its favor.
+| Oura field | Body field | Type | Notes |
+|---|---|---|---|
+| `activity` | `activity_name` | string | e.g. `running` |
+| `start_datetime`, `end_datetime` | `effective_time_frame.time_interval` | ISO-8601 | Required |
+| `distance` | `distance.value` | float | m; optional |
+| `calories` | `kcal_burned.value` | float | kcal; optional |
+| `intensity` | `reported_activity_intensity` | enum | `easy→light`, `moderate→moderate`, `hard→vigorous` |
 
-### Not mapped (gaps)
+### Not mapped
 
 | Oura field | Reason |
 |---|---|
-| `low_activity_time` | dicristea maps to IEEE `physical-activity:1.0` duration fields. No OMH equivalent. |
-| `medium_activity_time` | Same |
-| `high_activity_time` | Same |
-| `*_met_minutes` | No standard equivalent |
-| `non_wear_time` | Device metadata, not a health measurement |
-| `score` | Oura-proprietary |
-| `total_calories` | Includes BMR; `active_calories` is the clinically relevant subset |
+| `label`, `source`, `day` (workout) | Free text / provenance / redundant with the interval |
+| `total_calories`, `score`, `met`, `*_met_minutes`, `sedentary_time`, `resting_time`, `non_wear_time`, `inactivity_alerts`, `target_*`, `class_5_min`, `contributors` | No field on `ieee:physical-activity:1.0` (`met` is a sample object, not a scalar MET value) |
 
 ---
 
@@ -132,3 +147,66 @@ This document covers the **body** content of each converter. For the IEEE 1752.1
 |---|---|
 | `breathing_disturbance_index` | No OMH equivalent; maps to IEEE `apnea-hypopnea-index` (not shimmed) |
 | `spo2_percentage.min` / `.max` | Could map via descriptive-statistic; deferred |
+
+---
+
+## sleep_stage_summary → `ieee:sleep-stage-summary:1.0`
+
+**Oura endpoint:** `/v2/usercollection/sleep` (the same item `sleep_episode` reads)
+
+| Oura field | Body field | Type | Notes |
+|---|---|---|---|
+| `total_sleep_duration` | `sleep_stage_summary.total_sleep_time.value` | int | sec; **required** (null raises) |
+| `light_sleep_duration` | `sleep_stage_summary.light_sleep_duration.value` | int | sec; optional |
+| `deep_sleep_duration` | `sleep_stage_summary.deep_sleep_duration.value` | int | sec; optional |
+| `rem_sleep_duration` | `sleep_stage_summary.rem_sleep_duration.value` | int | sec; optional |
+| `awake_time` | `sleep_stage_summary.awake_duration.value` | int | sec; optional |
+| `latency` | `sleep_stage_summary.latency_to_sleep_onset.value` | int | sec; optional |
+| `efficiency` | `sleep_stage_summary.sleep_efficiency_percentage.value` | float | %; optional |
+| `bedtime_start`, `bedtime_end` | `effective_time_frame.time_interval` | ISO-8601 | Required |
+| `type` | `is_main_sleep` | bool | As in `sleep_episode` |
+
+`sleep_stage_episodes` is not populated: Oura's `sleep_phase_5_min` is a hypnogram string and no consumer asks for intervals yet.
+
+---
+
+## time_in_bed → `ieee:time-in-bed:1.0`
+
+**Oura endpoint:** `/v2/usercollection/sleep`
+
+| Oura field | Body field | Type | Notes |
+|---|---|---|---|
+| `time_in_bed` | `time_in_bed.value` | int | sec; **required** (Oura marks it required too) |
+| `bedtime_start`, `bedtime_end` | `effective_time_frame.time_interval` | ISO-8601 | Required |
+| `type` | `is_main_sleep` | bool | As in `sleep_episode` |
+
+---
+
+## respiratory_rate → `omh:respiratory-rate:2.0`
+
+**Oura endpoint:** `/v2/usercollection/sleep`
+
+| Oura field | OMH field | Type | Notes |
+|---|---|---|---|
+| `average_breath` | `respiratory_rate.value` | float | breaths/min; **required** (null raises) |
+| `bedtime_start`, `bedtime_end` | `effective_time_frame.time_interval` | ISO-8601 | The sleep episode |
+| (constant) | `descriptive_statistic` | enum | `"average"`: Oura documents the field as the average over the sleep |
+
+---
+
+## body_weight → `omh:body-weight:3.0` and body_height → `omh:body-height:2.0`
+
+**Oura endpoint:** `/v2/usercollection/personal_info` — a profile object, not a timestamped reading.
+
+| Oura field | OMH field | Type | Notes |
+|---|---|---|---|
+| `weight` | `body_weight.value` | float | kg; **required** for `body_weight` |
+| `height` | `body_height.value` | float | **m** (Oura's unit, emitted as-is; `ow_normalized` emits cm); **required** for `body_height` |
+| `timestamp` | `effective_time_frame.date_time` | ISO-8601 | **Caller-supplied.** Oura sends no measurement time. The caller stamps one before calling `convert()` (JHE's raw mode uses the S3 object's `last_modified`, the moment Open Wearables fetched the profile; Open Wearables itself stamps sync time). Absent → `ConversionError`. |
+
+### Not mapped
+
+| Oura field | Reason |
+|---|---|
+| `id` | The user's id, not the reading's |
+| `age`, `biological_sex`, `email` | Demographics / PII; not a measure |

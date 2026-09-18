@@ -19,11 +19,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   change: the documented contract for this source is "OW read-API shapes", and no
   conforming caller could have existed. Output schema ids are unchanged.
 - `oura_raw.sleep_episode` sets `is_main_sleep` from Oura's real `PublicSleepType`
-  enum (`sleep`, `long_sleep` → main; `late_nap`, `rest` → not main; `deleted` raises).
-  It tested `type != "nap"`, a value Oura v2 does not publish, so a late nap was filed
-  as main sleep.
+  enum (`sleep`, `long_sleep` → main; `late_nap`, `rest` → not main). It tested
+  `type != "nap"`, a value Oura v2 does not publish, so a late nap was filed as main
+  sleep. A `deleted` record raises `ConversionError` for every sleep-derived data type,
+  not just `sleep_episode`: the gate lives in the shared `_sleep_interval` helper.
 - Both `sleep_episode` converters now emit `light_sleep_duration`,
   `deep_sleep_duration` and `rem_sleep_duration`, which the inputs already carried.
+
+### Added
+
+- Five data types, each with an `ow_normalized` and an `oura_raw` converter:
+  `sleep_stage_summary` (`ieee:sleep-stage-summary:1.0`), `time_in_bed`
+  (`ieee:time-in-bed:1.0`), `respiratory_rate` (`omh:respiratory-rate:2.0`),
+  `body_weight` (`omh:body-weight:3.0`), `body_height` (`omh:body-height:2.0`, newly
+  vendored). The first four schemas were served-only before; they now resolve.
+- `heart_rate` accepts a resting-heart-rate sample on both sources (OW
+  `type=resting_heart_rate`; an Oura sleep item's `lowest_heart_rate`) and emits
+  `temporal_relationship_to_sleep: "during sleep"`; the Oura body also carries
+  `descriptive_statistic: "minimum"`.
+- `physical_activity` accepts a workout on both sources (OW `Workout`; Oura
+  `/workout` item) and, on daily summaries, emits `duration` and
+  `duration_light/moderate/vigorous_activity`.
+- `oura_raw.body_weight` / `body_height` read a caller-supplied `timestamp`: Oura's
+  `personal_info` is a profile with no measurement time.
+- `duration_light/moderate/vigorous_activity` are emitted in `min` from
+  `ow_normalized` (OW reports intensity minutes) and in `sec` from `oura_raw` (Oura
+  reports activity time in seconds); consumers comparing the field across sources
+  must read `unit`.
 
 ## [2.0.0] — 2026-09-16
 

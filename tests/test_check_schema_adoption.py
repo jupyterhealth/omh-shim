@@ -19,7 +19,7 @@ OMH_IDS = sorted(schema_id for schema_id in known_ids() if schema_id.startswith(
 
 # missing_canaries keys on every ieee:-resolved id, so canaries are derived, not hard-coded.
 # The paths are flat because build_measure_index keys on the basename; its own directory
-# handling (metadata/, utility/, nesting) is covered by the build_measure_index tests above.
+# handling (metadata/, utility/, nesting) is covered by the build_measure_index tests below.
 IEEE_IDS = sorted(schema_id for schema_id in SCHEMA_IDS.values() if schema_id.startswith("ieee:"))
 IEEE_MEASURES = sorted(schema_id.split(":")[1] for schema_id in IEEE_IDS)
 IEEE_CANARY_PATHS = [
@@ -700,7 +700,7 @@ def test_main_json_reports_both_sources_down_and_exits_nonzero(monkeypatch, caps
 
 
 def test_run_omh_check_carries_the_ids_it_could_not_fetch(monkeypatch):
-    """1-of-14 failing still runs, but the unchecked id must not vanish into stderr:
+    """1-of-N failing still runs, but the unchecked id must not vanish into stderr:
     an upstream rename gives a permanent 404 and that schema then goes unchecked forever."""
     failure = "omh:rr-interval:1.0 from https://raw...: HTTPError: HTTP Error 404: Not Found"
     monkeypatch.setattr(
