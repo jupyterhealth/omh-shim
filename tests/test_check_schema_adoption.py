@@ -12,7 +12,10 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
 import check_schema_adoption  # noqa: E402
 
-from omh_shim import SCHEMA_IDS  # noqa: E402
+from omh_shim import SCHEMA_IDS, known_ids  # noqa: E402
+
+# run_omh_check fetches every vendored omh: id, so counts are derived, not hard-coded.
+OMH_IDS = sorted(schema_id for schema_id in known_ids() if schema_id.startswith("omh:"))
 
 # Captured before the autouse stub below replaces it, for the tests that exercise it directly.
 _REAL_FETCH_OMH_SCHEMAS = check_schema_adoption.fetch_omh_schemas
@@ -20,7 +23,7 @@ _REAL_FETCH_OMH_SCHEMAS = check_schema_adoption.fetch_omh_schemas
 
 @pytest.fixture(autouse=True)
 def _no_omh_network(monkeypatch):
-    """Every main() call would otherwise fetch 14 schemas from openmhealth/schemas."""
+    """Every main() call would otherwise fetch every vendored omh: schema from openmhealth/schemas."""
     monkeypatch.setattr(
         check_schema_adoption, "fetch_omh_schemas", lambda ids, ref="main": ({}, [])
     )
@@ -599,7 +602,10 @@ def test_find_deprecations_still_accepts_a_cross_namespace_successor_of_the_same
 
 
 def test_run_omh_check_treats_zero_fetched_as_not_having_run(monkeypatch, capsys):
-    failures = [f"omh:schema-{i}:1.0 from https://example: HTTPError: HTTP Error 429" for i in range(14)]
+    failures = [
+        f"omh:schema-{i}:1.0 from https://example: HTTPError: HTTP Error 429"
+        for i in range(len(OMH_IDS))
+    ]
     monkeypatch.setattr(
         check_schema_adoption, "fetch_omh_schemas", lambda ids, ref="main": ({}, failures)
     )
@@ -608,11 +614,11 @@ def test_run_omh_check_treats_zero_fetched_as_not_having_run(monkeypatch, capsys
     )
     assert result.ran is False
     assert result.findings == []
-    assert "0 of 14 omh: schema(s)" in result.error
+    assert f"0 of {len(OMH_IDS)} omh: schema(s)" in result.error
     assert "429" in result.error
     err = capsys.readouterr().err
     assert "::warning::" in err
-    assert "0 of 14" in err
+    assert f"0 of {len(OMH_IDS)}" in err
 
 
 def test_run_omh_check_runs_when_at_least_one_schema_was_fetched(monkeypatch):

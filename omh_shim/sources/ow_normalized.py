@@ -104,3 +104,11 @@ def body_weight(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, An
         "body_weight": unit_value(sample["value"], "kg"),
         "effective_time_frame": date_time_frame(sample["timestamp"]),
     }
+
+
+def body_height(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any]:
+    """Input: OW TimeSeriesSample with type=height (OW unit ``cm``)."""
+    return {
+        "body_height": unit_value(sample["value"], "cm"),
+        "effective_time_frame": date_time_frame(sample["timestamp"]),
+    }

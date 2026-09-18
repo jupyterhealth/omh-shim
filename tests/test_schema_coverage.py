@@ -106,6 +106,7 @@ SCHEMA_STATUS: frozenset[str] = frozenset({
     "ieee_total-sleep-time_1-0.json",
     "omh_respiratory-rate_2-0.json",
     "omh_body-weight_3-0.json",
+    "omh_body-height_2-0.json",
 })
 
 # Body schemas vendored so downstream consumers (e.g. the JHE MCP server) can

@@ -142,3 +142,11 @@ def body_weight(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, An
         "body_weight": unit_value(require(sample, "weight", context="oura_raw body_weight"), "kg"),
         "effective_time_frame": date_time_frame(_profile_timestamp(sample, "body_weight")),
     }
+
+
+def body_height(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any]:
+    """Input: Oura personal_info (``height`` in metres) plus a caller-supplied ``timestamp``."""
+    return {
+        "body_height": unit_value(require(sample, "height", context="oura_raw body_height"), "m"),
+        "effective_time_frame": date_time_frame(_profile_timestamp(sample, "body_height")),
+    }

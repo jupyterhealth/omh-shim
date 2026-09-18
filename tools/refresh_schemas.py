@@ -49,6 +49,7 @@ TARGETS: list[tuple[str, str]] = [
     # Clinical body schemas (served for downstream consumers; no converters).
     ("data/omh_blood-pressure_4-0.json", "blood-pressure-4.0.json"),
     ("data/omh_body-temperature_4-0.json", "body-temperature-4.0.json"),
+    ("data/omh_body-height_2-0.json", "body-height-2.0.json"),
     ("data/omh_body-weight_3-0.json", "body-weight-3.0.json"),
     ("data/omh_forced-expiratory-volume-1-second_1-0.json", "forced-expiratory-volume-1-second-1.0.json"),
     ("data/omh_forced-vital-capacity_1-0.json", "forced-vital-capacity-1.0.json"),

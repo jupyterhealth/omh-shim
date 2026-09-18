@@ -26,6 +26,7 @@ DATA_TYPES = [
     "physical_activity",
     "respiratory_rate",
     "body_weight",
+    "body_height",
 ]
 SOURCES = ["oura_raw", "ow_normalized"]
 
@@ -172,3 +173,13 @@ def test_oura_body_weight_requires_caller_timestamp():
     """Oura personal_info is a profile with no measurement time; the caller stamps one."""
     with pytest.raises(ConversionError, match="timestamp"):
         convert(source="oura_raw", data_type="body_weight", sample={"id": "user-1", "weight": 72.5})
+
+
+def test_body_height_units_follow_the_source():
+    """OW converts Oura's metres to cm at ingest; omh-shim emits each source's native unit."""
+    ow = convert(source="ow_normalized", data_type="body_height",
+                 sample={"timestamp": "2026-04-10T07:00:00Z", "type": "height", "value": 178.0})
+    oura = convert(source="oura_raw", data_type="body_height",
+                   sample={"height": 1.78, "timestamp": "2026-04-10T07:00:00Z"})
+    assert ow["body"]["body_height"]["unit"] == "cm"
+    assert oura["body"]["body_height"]["unit"] == "m"

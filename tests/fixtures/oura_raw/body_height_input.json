@@ -1,0 +1,9 @@
+{
+  "id": "user-1",
+  "age": 41,
+  "weight": 72.5,
+  "height": 1.78,
+  "biological_sex": "male",
+  "email": "user@example.com",
+  "timestamp": "2026-04-10T07:00:00+00:00"
+}
