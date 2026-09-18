@@ -181,7 +181,7 @@ Two OW shapes convert through one function, told apart by their keys.
 | `start_time`, `end_time` | `effective_time_frame.time_interval` | ISO-8601 | Required |
 | `is_nap` | `is_main_sleep` | bool | Inverted |
 
-`stages` may be `null`; the body then carries only `total_sleep_time`, which is all the schema requires. `sleep_stage_episodes` (from `sleep_stage_intervals`, `include=stages`) is not populated.
+`stages` may be `null`; the body then carries no stage durations, only `total_sleep_time` (all the schema requires) and, when present, `sleep_efficiency_percentage` (read from the session, not from `stages`). `sleep_stage_episodes` (from `sleep_stage_intervals`, `include=stages`) is not populated.
 
 ---
 
