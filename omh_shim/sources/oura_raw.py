@@ -35,37 +35,44 @@ def heart_rate(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any
     }
 
 
-_MAIN_SLEEP_TYPES = frozenset({"sleep", "long_sleep"})
-_NOT_MAIN_SLEEP_TYPES = frozenset({"late_nap", "rest"})
+# Oura caps ``sleep`` at 3 h, so only ``long_sleep`` (>3 h) is main sleep; OW's is_nap rule agrees.
+_MAIN_SLEEP_TYPES = frozenset({"long_sleep"})
+_NOT_MAIN_SLEEP_TYPES = frozenset({"sleep", "late_nap"})
+_REJECTED_SLEEP_TYPES = frozenset({"rest", "deleted"})
 
 
 def _sleep_interval(sample: Mapping[str, Any]) -> dict[str, Any]:
     """effective_time_frame for an Oura sleep item (bedtime_start/bedtime_end)."""
-    # Every sleep-derived body starts here, so a deleted record is rejected once for all data types.
-    if sample.get("type") == "deleted":
-        raise ConversionError("oura_raw sleep record type 'deleted' is not converted")
+    # Every sleep-derived body starts here, so a 'rest' (user-rejected false detection) or
+    # 'deleted' record is rejected once for all data types, as OW also skips both.
+    if (sleep_type := sample.get("type")) in _REJECTED_SLEEP_TYPES:
+        raise ConversionError(f"oura_raw sleep record type {sleep_type!r} is not converted")
     return {"time_interval": interval_from_bounds(sample["bedtime_start"], sample["bedtime_end"])}
 
 
 def _is_main_sleep(sample: Mapping[str, Any]) -> bool | None:
-    """Oura v2 ``PublicSleepType`` -> is_main_sleep; ``None`` when the record has no type."""
+    """Oura v2 ``PublicSleepType`` -> is_main_sleep; ``None`` when the type is absent or unmapped."""
     sleep_type = sample.get("type")
-    if sleep_type is None:
-        return None
     if sleep_type in _MAIN_SLEEP_TYPES:
         return True
     if sleep_type in _NOT_MAIN_SLEEP_TYPES:
         return False
-    # 'deleted' is caught in _sleep_interval; anything here is a value Oura has not published.
-    raise ConversionError(f"oura_raw sleep record type {sleep_type!r} is not converted")
+    # An unpublished type does not make the measurements wrong, only the main/nap label
+    # unknown — the same policy as an unmapped workout ``intensity``.
+    return None
 
 
 def sleep_duration(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any]:
     """Input: Oura sleep/data[i] with ``total_sleep_duration`` in seconds."""
-    return {
-        "total_sleep_time": unit_value(sample["total_sleep_duration"], "sec", cast=int),
-        "effective_time_frame": _sleep_interval(sample),
+    frame = _sleep_interval(sample)
+    total = require(sample, "total_sleep_duration", context="oura_raw sleep_duration")
+    out: dict[str, Any] = {
+        "total_sleep_time": unit_value(total, "sec", cast=int),
+        "effective_time_frame": frame,
     }
+    if (is_main := _is_main_sleep(sample)) is not None:
+        out["is_main_sleep"] = is_main
+    return out
 
 
 def sleep_episode(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any]:

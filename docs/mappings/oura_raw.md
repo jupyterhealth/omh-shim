@@ -37,13 +37,14 @@ A `/v2/usercollection/sleep` item (recognised by `bedtime_start`) converts throu
 
 | Oura field | OMH field | Type | Notes |
 |---|---|---|---|
-| `total_sleep_duration` | `total_sleep_time.value` | int | Oura reports in seconds; no unit conversion needed |
+| `total_sleep_duration` | `total_sleep_time.value` | int | Oura reports in seconds; no unit conversion needed; **required** (null raises) |
 | `bedtime_start` | `effective_time_frame.time_interval.start_date_time` | ISO-8601 | |
 | `bedtime_end` | `effective_time_frame.time_interval.end_date_time` | ISO-8601 | |
+| `type` | `is_main_sleep` | bool | As in `sleep_episode` |
 
 ### Endpoint-specific handling
 
-- **A `deleted` record raises `ConversionError`.** The check lives in the shared sleep interval helper, so every sleep-derived data type rejects it; a deleted record must not become an observation.
+- **A `rest` or `deleted` record raises `ConversionError`.** The check lives in the shared sleep interval helper, so every sleep-derived data type rejects both; neither a user-rejected false detection nor a deleted record must become an observation.
 
 ### Not mapped (gaps)
 
@@ -68,12 +69,12 @@ A `/v2/usercollection/sleep` item (recognised by `bedtime_start`) converts throu
 | `awake_time` | `wake_after_sleep_onset.value` | int | sec; optional |
 | `latency` | `latency_to_sleep_onset.value` | int | sec; optional |
 | `efficiency` | `sleep_efficiency_percentage.value` | float | %; optional |
-| `type` | `is_main_sleep` | bool | Oura `PublicSleepType`: `sleep`, `long_sleep` → `true`; `late_nap`, `rest` → `false`; `deleted` raises `ConversionError` for every sleep-derived data type (a deleted record must not become an observation); absent → field omitted |
+| `type` | `is_main_sleep` | bool | Oura `PublicSleepType`: `long_sleep` → `true`; `sleep`, `late_nap` → `false`; `rest` and `deleted` raise `ConversionError` for every sleep-derived data type; absent or any other value → field omitted, the record still converts |
 
 ### Endpoint-specific handling
 
 - **Optional fields omitted when absent.** Only `effective_time_frame` is schema-required. All other fields are set only if the Oura sample contains them with a non-None value.
-- **Main sleep follows Oura's `PublicSleepType`.** Oura v2 (OpenAPI 1.39) enumerates `deleted | sleep | long_sleep | late_nap | rest`. There is no `nap` value; `late_nap` and `rest` are the non-main types.
+- **Main sleep follows Oura's `PublicSleepType`.** Oura v2 (OpenAPI 1.39) enumerates `deleted | sleep | long_sleep | late_nap | rest` — there is no `nap` value — and defines `sleep` as a user-confirmed sleep or nap of at most 3 hours and `long_sleep` as sleep long enough (>3 h) to contribute to the daily scores, so `long_sleep` alone is main sleep and `sleep` and `late_nap` are naps. `rest` (a falsely detected sleep the user rejected) and `deleted` raise `ConversionError` for every sleep-derived data type, matching what Open Wearables ingests. Absent, or any other value, leaves `is_main_sleep` off the body and still converts the record.
 - **WASO is approximate.** `awake_time` is all awake time in bed and includes the `latency` Oura also reports separately.
 
 ### Not mapped (gaps)

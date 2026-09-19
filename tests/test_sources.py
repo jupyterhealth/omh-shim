@@ -55,17 +55,19 @@ _OURA_SLEEP_BOUNDS = {
 
 
 @pytest.mark.parametrize("sleep_type,expected", [
-    ("sleep", True), ("long_sleep", True), ("late_nap", False), ("rest", False),
+    ("long_sleep", True), ("sleep", False), ("late_nap", False),
 ])
 def test_oura_sleep_episode_is_main_sleep_follows_public_sleep_type(sleep_type, expected):
-    """Oura v2 PublicSleepType is deleted|sleep|long_sleep|late_nap|rest; there is no 'nap'."""
+    """Oura defines `sleep` as a <=3 h confirmed sleep/nap and only `long_sleep` (>3 h) as
+    main sleep, matching OW's `is_nap` rule."""
     sample = {**_OURA_SLEEP_BOUNDS, "total_sleep_duration": 2400, "type": sleep_type}
     result = convert(source="oura_raw", data_type="sleep_episode", sample=sample)
     assert result["body"]["is_main_sleep"] is expected
 
 
-@pytest.mark.parametrize("sleep_type", ["deleted", "nap"])
-def test_oura_sleep_episode_rejects_deleted_and_unknown_types(sleep_type):
+@pytest.mark.parametrize("sleep_type", ["deleted", "rest"])
+def test_oura_sleep_episode_rejects_rest_and_deleted(sleep_type):
+    """`rest` is a falsely detected sleep the user rejected, which Open Wearables also skips."""
     with pytest.raises(ConversionError, match="type"):
         convert(source="oura_raw", data_type="sleep_episode",
                 sample={**_OURA_SLEEP_BOUNDS, "type": sleep_type})
@@ -81,6 +83,44 @@ def test_oura_sleep_duration_rejects_deleted_record():
     with pytest.raises(ConversionError, match="deleted"):
         convert(source="oura_raw", data_type="sleep_duration",
                 sample={**_OURA_SLEEP_BOUNDS, "total_sleep_duration": 2400, "type": "deleted"})
+
+
+def test_oura_sleep_duration_requires_total_sleep_duration():
+    with pytest.raises(ConversionError, match="total_sleep_duration"):
+        convert(source="oura_raw", data_type="sleep_duration",
+                sample={**_OURA_SLEEP_BOUNDS, "total_sleep_duration": None})
+
+
+# Every raw Oura sleep-derived data type reads the same sleep/data[i] item.
+_OURA_SLEEP_DATA_TYPES = [
+    "sleep_episode", "sleep_duration", "time_in_bed",
+    "sleep_stage_summary", "respiratory_rate", "heart_rate",
+]
+_OURA_MAIN_SLEEP_FLAG_TYPES = {"sleep_episode", "time_in_bed", "sleep_stage_summary"}
+_OURA_FULL_SLEEP_RECORD = {
+    **_OURA_SLEEP_BOUNDS,
+    "total_sleep_duration": 27600,
+    "time_in_bed": 29700,
+    "average_breath": 14.2,
+    "lowest_heart_rate": 48,
+}
+
+
+@pytest.mark.parametrize("data_type", _OURA_SLEEP_DATA_TYPES)
+def test_oura_sleep_unknown_type_converts_without_main_sleep_flag(data_type):
+    """An unpublished PublicSleepType leaves the main/nap label unknown, not the record wrong."""
+    body = convert(source="oura_raw", data_type=data_type,
+                   sample={**_OURA_FULL_SLEEP_RECORD, "type": "future_value"})["body"]
+    if data_type in _OURA_MAIN_SLEEP_FLAG_TYPES:
+        assert "is_main_sleep" not in body
+
+
+@pytest.mark.parametrize("data_type", _OURA_SLEEP_DATA_TYPES)
+def test_oura_sleep_rest_record_rejected_for_every_data_type(data_type):
+    """The one gate is _sleep_interval, so no sleep-derived body can escape a rejected record."""
+    with pytest.raises(ConversionError, match="rest"):
+        convert(source="oura_raw", data_type=data_type,
+                sample={**_OURA_FULL_SLEEP_RECORD, "type": "rest"})
 
 
 def test_oura_physical_activity_omits_optional_fields_when_absent():
