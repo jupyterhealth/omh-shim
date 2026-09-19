@@ -19,7 +19,7 @@ omh_shim/schemas/
                 # (currently descriptive-statistic-1.0.json, whose IEEE enum is wider)
 ```
 
-Some `data/` body schemas (e.g. the clinical `blood-pressure`, `respiratory-rate`)
+Some `data/` body schemas (e.g. the clinical `blood-pressure`, `rr-interval`)
 are vendored to be *served and validated* by downstream consumers but have no
 `convert()` converter in omh-shim. These are tracked in
 `tests/test_schema_coverage.py` as `SERVED_NO_CONVERTER`.

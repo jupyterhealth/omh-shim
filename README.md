@@ -4,9 +4,12 @@ Convert wearable health data from vendor schemas to [IEEE 1752](https://opensour
 
 ## Status
 
-v2.1 — both sources now cover every measure Open Wearables 0.9.0 and Oura v2 carry
-that has a live IEEE 1752 or Open mHealth schema. The 2.0 line moved three data types
-to IEEE and removed two; see [CHANGELOG.md](CHANGELOG.md) before upgrading from 1.x.
+v2.1 — both sources now convert every Oura-sourced measure Open Wearables 0.9.0
+serves that has a live IEEE 1752 or Open mHealth schema (11 data types; blood glucose
+is OW-only). Measures OW can serve from other providers (blood pressure, body
+temperature, spirometry) stay served-only, see below. The 2.0 line moved three data
+types to IEEE and removed two; see [CHANGELOG.md](CHANGELOG.md) before upgrading
+from 1.x.
 
 ## Install
 
@@ -34,10 +37,11 @@ omh_record = convert(
 )
 ```
 
-Daily data types (``physical_activity``, ``sleep_duration``,
-``oxygen_saturation``)
-aggregate over a calendar day, so they REQUIRE an explicit timezone so the day
-boundaries reflect the user's local day rather than silently assuming UTC:
+The daily *shapes* — an OW `ActivitySummary` or `SleepSummary`, an Oura
+`daily_activity` or `daily_spo2` item — aggregate over a calendar day, so they
+REQUIRE an explicit timezone so the day boundaries reflect the user's local day
+rather than silently assuming UTC. The episode and workout shapes that reach the
+same data types carry their own interval and ignore `tz`:
 
 ```python
 from datetime import UTC
@@ -59,6 +63,10 @@ convert(
     tz=ZoneInfo("America/Los_Angeles"),
 )
 ```
+
+On `oura_raw`, `body_weight` and `body_height` need a caller-supplied `timestamp`
+because Oura's `personal_info` carries none (see
+"[Supported sources and data types](#supported-sources-and-data-types)").
 
 Every conversion returns the full IEEE 1752.1 data-point envelope —
 `{"header": ..., "body": ...}` — with UUID, schema_id components, creation

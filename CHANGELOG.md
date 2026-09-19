@@ -23,8 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   3 h), and rejects `rest` (a user-rejected false detection) and `deleted` for every
   sleep-derived data type, matching what Open Wearables ingests. It previously tested
   `type != "nap"`, a value Oura v2 does not publish, so naps were filed as main sleep.
-- Both `sleep_episode` converters now emit `light_sleep_duration`,
-  `deep_sleep_duration` and `rem_sleep_duration`, which the inputs already carried.
 
 ### Added
 
@@ -38,14 +36,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `temporal_relationship_to_sleep: "during sleep"`; the Oura body also carries
   `descriptive_statistic: "minimum"`.
 - `physical_activity` accepts a workout on both sources (OW `Workout`; Oura
-  `/workout` item) and, on daily summaries, emits `duration` and
-  `duration_light/moderate/vigorous_activity`.
+  `/workout` item); on daily summaries, both sources emit
+  `duration_light/moderate/vigorous_activity`; the OW daily summary also emits
+  `duration` (from `active_minutes`), and the OW workout emits `duration` (from
+  `duration_seconds`).
 - `oura_raw.body_weight` / `body_height` read a caller-supplied `timestamp`: Oura's
   `personal_info` is a profile with no measurement time.
 - `duration_light/moderate/vigorous_activity` are emitted in `min` from
   `ow_normalized` (OW reports intensity minutes) and in `sec` from `oura_raw` (Oura
   reports activity time in seconds); consumers comparing the field across sources
   must read `unit`.
+- Both `sleep_episode` converters now emit `light_sleep_duration`,
+  `deep_sleep_duration` and `rem_sleep_duration`, which the inputs already carried.
 
 ## [2.0.0] — 2026-09-16
 

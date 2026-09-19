@@ -104,7 +104,7 @@ IEEE_UTILITY_TARGETS: list[tuple[str, str]] = [
     ("utility/speed-unit-value-1.0.json", "utility/speed-unit-value-1.0.json"),
 ]
 
-# IEEE 1752 body schemas from opensource.ieee.org/omh/1752; only sleep-stage-summary has no converter.
+# IEEE 1752 body schemas from opensource.ieee.org/omh/1752; all five have converters.
 IEEE_DATA_TARGETS: list[tuple[str, str]] = [
     # (vendored path under SCHEMAS_DIR, upstream path under schemas/)
     ("data/ieee_sleep-stage-summary_1-0.json", "sleep/sleep-stage-summary-1.0.json"),

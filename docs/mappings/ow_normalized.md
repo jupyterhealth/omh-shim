@@ -54,7 +54,7 @@ A `TimeSeriesSample` with `type=resting_heart_rate` (OW's per-night scalar; Oura
 |---|---|
 | `total_duration_minutes` | Includes naps; IEEE total-sleep-time is per-episode with an `is_main_sleep` flag, and a nap-inclusive total has no honest value for that flag |
 | `time_in_bed_minutes` | Own schema; see `time_in_bed` |
-| `efficiency_percent`, `stages`, `avg_*` | No field on `ieee:total-sleep-time:1.0`; carried by `sleep_episode` / `sleep_stage_summary` |
+| `efficiency_percent`, `stages`, `avg_*` | No field on `ieee:total-sleep-time:1.0`. The per-session equivalents are converted from `SleepSession` (`/events/sleep`) by `sleep_episode` / `sleep_stage_summary`; the daily aggregates and `avg_*` are not converted. |
 | `interruptions_count` | `sleep_events` wants intervals, not a count |
 | `start_time`, `end_time`, `zone_offset`, `sessions`, `nap_*` | See "Daily, not per-episode" |
 
