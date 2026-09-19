@@ -90,7 +90,7 @@ A `TimeSeriesSample` with `type=resting_heart_rate` (OW's per-night scalar; Oura
 | `duration_seconds` | Derivable from the interval |
 | `time_in_bed_seconds` | Own schema; see `time_in_bed` |
 | `zone_offset` | The timestamps already carry the offset |
-| `source` | Device metadata; feeds the header's `external_datasheets` |
+| `source` | Device metadata (provider, source, device, device_type); feeds the header's `external_datasheets` |
 | `sleep_stage_intervals` | Only returned with `include=stages`; no consumer asks yet |
 
 ---
@@ -138,7 +138,7 @@ Two OW shapes convert through one function, told apart by their keys.
 | `sedentary_minutes`, `total_calories_kcal`, `heart_rate`, `floors_climbed`, `elevation_meters` | No field on `ieee:physical-activity:1.0` |
 | `avg/max_heart_rate_bpm`, `hr_zones`, `power_zones`, `segments`, `avg_pace_sec_per_km` (Workout) | No field on `ieee:physical-activity:1.0` |
 | `met_value` (schema field) | MET arrives as the separate `physical_effort` timeseries, not on either shape |
-| `source` | Device metadata, not health data |
+| `source` | Device metadata (provider, source, device, device_type); feeds the header's `external_datasheets` |
 
 ---
 

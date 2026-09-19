@@ -48,6 +48,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   must read `unit`.
 - Both `sleep_episode` converters now emit `light_sleep_duration`,
   `deep_sleep_duration` and `rem_sleep_duration`, which the inputs already carried.
+- `oura_raw.sleep_duration` now emits `is_main_sleep` from the record's `type` (as
+  `time_in_bed` and `sleep_stage_summary` do) and requires `total_sleep_duration`; a
+  null value raises `ConversionError` instead of a wrapped `TypeError`.
 
 ## [2.0.0] — 2026-09-16
 

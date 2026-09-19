@@ -22,10 +22,11 @@ from omh_shim.errors import ConversionError
 def heart_rate(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any]:
     """Input: a heartrate item ``{"bpm", "source", "timestamp"}`` or a sleep item (``lowest_heart_rate``)."""
     if "bedtime_start" in sample:
+        frame = _sleep_interval(sample)
         lowest = require(sample, "lowest_heart_rate", context="oura_raw heart_rate (sleep record)")
         return {
             "heart_rate": unit_value(lowest, "beats/min"),
-            "effective_time_frame": _sleep_interval(sample),
+            "effective_time_frame": frame,
             "temporal_relationship_to_sleep": "during sleep",
             "descriptive_statistic": "minimum",
         }
@@ -177,10 +178,11 @@ def _profile_timestamp(sample: Mapping[str, Any], data_type: str) -> Any:
 
 def respiratory_rate(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any]:
     """Input: Oura sleep/data[i]; ``average_breath`` is the average over the sleep."""
+    frame = _sleep_interval(sample)
     breaths = require(sample, "average_breath", context="oura_raw respiratory_rate")
     return {
         "respiratory_rate": unit_value(breaths, "breaths/min"),
-        "effective_time_frame": _sleep_interval(sample),
+        "effective_time_frame": frame,
         "descriptive_statistic": "average",
     }
 
@@ -203,10 +205,11 @@ def body_height(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, An
 
 def time_in_bed(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any]:
     """Input: Oura sleep/data[i]; ``time_in_bed`` is seconds."""
+    frame = _sleep_interval(sample)
     seconds = require(sample, "time_in_bed", context="oura_raw time_in_bed")
     out: dict[str, Any] = {
         "time_in_bed": unit_value(seconds, "sec", cast=int),
-        "effective_time_frame": _sleep_interval(sample),
+        "effective_time_frame": frame,
     }
     if (is_main := _is_main_sleep(sample)) is not None:
         out["is_main_sleep"] = is_main
@@ -215,6 +218,7 @@ def time_in_bed(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, An
 
 def sleep_stage_summary(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any]:
     """Input: Oura sleep/data[i]; stage durations are seconds."""
+    frame = _sleep_interval(sample)
     total = require(sample, "total_sleep_duration", context="oura_raw sleep_stage_summary")
     summary: dict[str, Any] = {"total_sleep_time": unit_value(total, "sec", cast=int)}
     set_optional(summary, "light_sleep_duration", sample, "light_sleep_duration", unit="sec", cast=int)
@@ -225,7 +229,7 @@ def sleep_stage_summary(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict
     set_optional(summary, "sleep_efficiency_percentage", sample, "efficiency", unit="%")
     out: dict[str, Any] = {
         "sleep_stage_summary": summary,
-        "effective_time_frame": _sleep_interval(sample),
+        "effective_time_frame": frame,
     }
     if (is_main := _is_main_sleep(sample)) is not None:
         out["is_main_sleep"] = is_main

@@ -5,11 +5,11 @@ Convert wearable health data from vendor schemas to [IEEE 1752](https://opensour
 ## Status
 
 v2.1 — both sources now convert every Oura-sourced measure Open Wearables 0.9.0
-serves that has a live IEEE 1752 or Open mHealth schema (11 data types; blood glucose
-is OW-only). Measures OW can serve from other providers (blood pressure, body
-temperature, spirometry) stay served-only, see below. The 2.0 line moved three data
-types to IEEE and removed two; see [CHANGELOG.md](CHANGELOG.md) before upgrading
-from 1.x.
+serves that has a live IEEE 1752 or Open mHealth schema (11 data types in all; blood
+glucose is OW-only, the other 10 are Oura-sourced). Measures OW can serve from other
+providers (blood pressure, body temperature, spirometry) stay served-only, see below.
+The 2.0 line moved three data types to IEEE and removed two; see
+[CHANGELOG.md](CHANGELOG.md) before upgrading from 1.x.
 
 ## Install
 

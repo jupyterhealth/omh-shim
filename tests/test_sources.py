@@ -96,7 +96,7 @@ _OURA_SLEEP_DATA_TYPES = [
     "sleep_episode", "sleep_duration", "time_in_bed",
     "sleep_stage_summary", "respiratory_rate", "heart_rate",
 ]
-_OURA_MAIN_SLEEP_FLAG_TYPES = {"sleep_episode", "time_in_bed", "sleep_stage_summary"}
+_OURA_MAIN_SLEEP_FLAG_TYPES = {"sleep_episode", "sleep_duration", "time_in_bed", "sleep_stage_summary"}
 _OURA_FULL_SLEEP_RECORD = {
     **_OURA_SLEEP_BOUNDS,
     "total_sleep_duration": 27600,
@@ -121,6 +121,17 @@ def test_oura_sleep_rest_record_rejected_for_every_data_type(data_type):
     with pytest.raises(ConversionError, match="rest"):
         convert(source="oura_raw", data_type=data_type,
                 sample={**_OURA_FULL_SLEEP_RECORD, "type": "rest"})
+
+
+@pytest.mark.parametrize("data_type", [
+    "sleep_duration", "time_in_bed", "sleep_stage_summary", "respiratory_rate", "heart_rate",
+])
+def test_oura_sleep_rest_beats_the_required_field_check(data_type):
+    """Each converter reads the interval first, so a rejected record reports the type,
+    not whichever field it also happens to be missing."""
+    with pytest.raises(ConversionError, match="rest"):
+        convert(source="oura_raw", data_type=data_type,
+                sample={**_OURA_SLEEP_BOUNDS, "type": "rest"})
 
 
 def test_oura_physical_activity_omits_optional_fields_when_absent():
