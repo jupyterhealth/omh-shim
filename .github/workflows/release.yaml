@@ -53,7 +53,8 @@ jobs:
 
   pypi-publish:
     runs-on: ubuntu-24.04
-    if: startsWith(github.ref, 'refs/tags/')
+    # Forks mirror tags but hold no PyPI trusted publisher; only upstream publishes.
+    if: startsWith(github.ref, 'refs/tags/') && github.repository == 'jupyterhealth/omh-shim'
     environment:
       name: release
     needs:
