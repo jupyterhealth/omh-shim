@@ -290,6 +290,21 @@ def test_header_omits_external_datasheets_when_no_source():
     assert "external_datasheets" not in result["header"]
 
 
+def test_header_external_datasheets_falls_back_to_provider():
+    """OW's Oura ingest records no device model, so the provider names the manufacturer."""
+    import json
+    from pathlib import Path
+
+    sample = json.loads(
+        (Path(__file__).parent / "fixtures" / "ow_normalized"
+         / "sleep_episode_input.json").read_text()
+    )
+    result = convert(source="ow_normalized", data_type="sleep_episode", sample=sample)
+    assert result["header"]["external_datasheets"] == [
+        {"datasheet_type": "manufacturer", "datasheet_reference": "oura"},
+    ]
+
+
 def test_header_external_datasheets_oura_raw_implicit_device():
     """oura_raw samples lack nested source metadata; the device is implicit."""
     result = convert(

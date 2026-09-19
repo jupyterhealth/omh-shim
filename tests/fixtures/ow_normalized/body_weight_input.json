@@ -4,6 +4,6 @@
   "type": "weight",
   "value": 72.5,
   "unit": "kg",
-  "source": {"provider": "oura", "source": "oura", "device": "Oura Gen 3", "device_type": "ring"},
+  "source": {"provider": "oura", "source": "oura", "device": null, "device_type": "ring"},
   "is_daily_total": null
 }

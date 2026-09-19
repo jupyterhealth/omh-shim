@@ -29,7 +29,7 @@ omh_record = convert(
         "type": "heart_rate",
         "value": 72,
         "unit": "bpm",
-        "source": {"source_name": "Oura Ring", "device_model": "Oura Gen 3"},
+        "source": {"provider": "oura", "source": "oura", "device": None, "device_type": "ring"},
     },
 )
 ```

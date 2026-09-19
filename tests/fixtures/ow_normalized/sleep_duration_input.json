@@ -1,6 +1,6 @@
 {
   "date": "2026-04-09",
-  "source": {"provider": "oura", "source": "oura", "device": "Oura Gen 3", "device_type": "ring"},
+  "source": {"provider": "oura", "source": "oura", "device": null, "device_type": "ring"},
   "start_time": "2026-04-08T22:30:00+00:00",
   "end_time": "2026-04-09T06:45:00+00:00",
   "zone_offset": "+00:00",

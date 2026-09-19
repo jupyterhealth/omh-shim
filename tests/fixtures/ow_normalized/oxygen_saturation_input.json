@@ -3,8 +3,5 @@
   "type": "oxygen_saturation",
   "value": 96.5,
   "unit": "%",
-  "source": {
-    "source_name": "Oura Ring",
-    "device_model": "Oura Gen 3"
-  }
+  "source": {"provider": "oura", "source": "oura", "device": null, "device_type": "ring"}
 }

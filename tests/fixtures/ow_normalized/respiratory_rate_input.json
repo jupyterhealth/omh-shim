@@ -4,6 +4,6 @@
   "type": "respiratory_rate",
   "value": 14.2,
   "unit": "brpm",
-  "source": {"provider": "oura", "source": "oura", "device": "Oura Gen 3", "device_type": "ring"},
+  "source": {"provider": "oura", "source": "oura", "device": null, "device_type": "ring"},
   "is_daily_total": false
 }

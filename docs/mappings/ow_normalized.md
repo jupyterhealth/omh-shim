@@ -29,7 +29,7 @@ A `TimeSeriesSample` with `type=resting_heart_rate` (OW's per-night scalar; Oura
 | `unit` | Always `"bpm"` in OW; OMH schema requires `"beats/min"` — hardcoded |
 | `type` | Discriminator for dispatch, not health data |
 | `zone_offset` | Informational; the timestamp already carries the offset |
-| `source` | Device metadata (source_name, device_model); not part of OMH heart-rate schema |
+| `source` | Device metadata (provider, source, device, device_type); feeds the header's `external_datasheets` |
 
 ---
 
@@ -162,7 +162,7 @@ Two OW shapes convert through one function, told apart by their keys.
 | `unit` | Always `"mg_dl"` in OW; OMH schema requires `"mg/dL"`, so it is hardcoded |
 | `type` | Discriminator for dispatch, not health data |
 | `zone_offset` | Informational; the timestamp already carries the offset |
-| `source` | Device metadata (source_name, device_model); not part of OMH blood-glucose schema |
+| `source` | Device metadata (provider, source, device, device_type); feeds the header's `external_datasheets` |
 
 ---
 
