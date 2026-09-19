@@ -4,8 +4,5 @@
   "type": "blood_glucose",
   "value": 110,
   "unit": "mg_dl",
-  "source": {
-    "source_name": "Stelo",
-    "device_model": "Stelo CGM"
-  }
+  "source": {"provider": "apple", "source": "Stelo", "device": "iPhone15,2", "device_type": "phone"}
 }

@@ -1,0 +1,5 @@
+{
+  "heart_rate": {"value": 48.0, "unit": "beats/min"},
+  "effective_time_frame": {"date_time": "2026-04-10T06:45:00Z"},
+  "temporal_relationship_to_sleep": "during sleep"
+}

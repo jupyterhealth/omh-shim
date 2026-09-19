@@ -19,7 +19,7 @@ from omh_shim._schema_loader import load as load_schema
 from omh_shim.errors import ValidationError
 
 
-# maxsize is bounded to a small constant: there are currently 6 top-level
+# maxsize is bounded to a small constant: there are currently 11 top-level
 # schema ids (see omh_shim.SCHEMA_IDS). 16 leaves room for future types
 # without making the cache unbounded.
 @lru_cache(maxsize=16)

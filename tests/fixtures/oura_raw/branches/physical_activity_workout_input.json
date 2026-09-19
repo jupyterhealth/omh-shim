@@ -1,0 +1,12 @@
+{
+  "id": "wk-1",
+  "activity": "running",
+  "calories": 410.0,
+  "day": "2026-04-09",
+  "distance": 7500.0,
+  "end_datetime": "2026-04-09T07:45:00+00:00",
+  "intensity": "hard",
+  "label": "Morning run",
+  "source": "autodetected",
+  "start_datetime": "2026-04-09T07:00:00+00:00"
+}

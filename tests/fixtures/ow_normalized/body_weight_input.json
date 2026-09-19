@@ -1,0 +1,9 @@
+{
+  "timestamp": "2026-04-10T07:00:00+00:00",
+  "zone_offset": "+00:00",
+  "type": "weight",
+  "value": 72.5,
+  "unit": "kg",
+  "source": {"provider": "oura", "source": "oura", "device": null, "device_type": "ring"},
+  "is_daily_total": null
+}

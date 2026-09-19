@@ -12,7 +12,19 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
 import check_schema_adoption  # noqa: E402
 
-from omh_shim import SCHEMA_IDS  # noqa: E402
+from omh_shim import SCHEMA_IDS, known_ids  # noqa: E402
+
+# run_omh_check fetches every vendored omh: id, so counts are derived, not hard-coded.
+OMH_IDS = sorted(schema_id for schema_id in known_ids() if schema_id.startswith("omh:"))
+
+# missing_canaries keys on every ieee:-resolved id, so canaries are derived, not hard-coded.
+# The paths are flat because build_measure_index keys on the basename; its own directory
+# handling (metadata/, utility/, nesting) is covered by the build_measure_index tests below.
+IEEE_IDS = sorted(schema_id for schema_id in SCHEMA_IDS.values() if schema_id.startswith("ieee:"))
+IEEE_MEASURES = sorted(schema_id.split(":")[1] for schema_id in IEEE_IDS)
+IEEE_CANARY_PATHS = [
+    "schemas/{}-{}.json".format(*schema_id.split(":")[1:]) for schema_id in IEEE_IDS
+]
 
 # Captured before the autouse stub below replaces it, for the tests that exercise it directly.
 _REAL_FETCH_OMH_SCHEMAS = check_schema_adoption.fetch_omh_schemas
@@ -20,7 +32,7 @@ _REAL_FETCH_OMH_SCHEMAS = check_schema_adoption.fetch_omh_schemas
 
 @pytest.fixture(autouse=True)
 def _no_omh_network(monkeypatch):
-    """Every main() call would otherwise fetch 14 schemas from openmhealth/schemas."""
+    """Every main() call would otherwise fetch every vendored omh: schema from openmhealth/schemas."""
     monkeypatch.setattr(
         check_schema_adoption, "fetch_omh_schemas", lambda ids, ref="main": ({}, [])
     )
@@ -78,9 +90,7 @@ def test_main_warns_on_unparsed_filenames(monkeypatch, capsys):
     monkeypatch.setattr(
         check_schema_adoption, "fetch_schema_paths",
         lambda project, ref, path=check_schema_adoption.DEFAULT_PATH: [
-            "schemas/physical_activity/physical-activity-1.0.json",
-            "schemas/sleep/sleep-episode-1.0.json",
-            "schemas/sleep/total-sleep-time-1.0.json",
+            *IEEE_CANARY_PATHS,
             "schemas/heart_rate/heart-rate-1.0.1.json",
         ],
     )
@@ -99,9 +109,7 @@ def test_main_json_stdout_stays_pure_json_when_filenames_are_unparsed(monkeypatc
     monkeypatch.setattr(
         check_schema_adoption, "fetch_schema_paths",
         lambda project, ref, path=check_schema_adoption.DEFAULT_PATH: [
-            "schemas/physical_activity/physical-activity-1.0.json",
-            "schemas/sleep/sleep-episode-1.0.json",
-            "schemas/sleep/total-sleep-time-1.0.json",
+            *IEEE_CANARY_PATHS,
             "schemas/heart_rate/heart-rate-1.0.1.json",
         ],
     )
@@ -189,9 +197,7 @@ def test_main_routes_unparseable_version_through_warning_path(monkeypatch, capsy
     monkeypatch.setattr(
         check_schema_adoption, "fetch_schema_paths",
         lambda project, ref, path=check_schema_adoption.DEFAULT_PATH: [
-            "schemas/physical_activity/physical-activity-1.0.json",
-            "schemas/sleep/sleep-episode-1.0.json",
-            "schemas/sleep/total-sleep-time-1.0.json",
+            *IEEE_CANARY_PATHS,
             "schemas/heart_rate/heart-rate-1.0.json",
         ],
     )
@@ -213,25 +219,24 @@ def test_find_findings_no_finding_for_unpublished_measure():
 
 
 def test_missing_canaries_empty_when_ieee_resolved_types_are_present():
-    index = {"physical-activity": {"1.0"}, "sleep-episode": {"1.0"}, "total-sleep-time": {"1.0"}}
+    index = {measure: {"1.0"} for measure in IEEE_MEASURES}
     assert check_schema_adoption.missing_canaries(index, SCHEMA_IDS) == []
 
 
 def test_missing_canaries_flags_absent_ieee_resolved_measure():
     # sleep-episode is missing even though sleep_episode already resolves to ieee:sleep-episode:1.0.
-    index = {"physical-activity": {"1.0"}, "total-sleep-time": {"1.0"}}
+    index = {measure: {"1.0"} for measure in IEEE_MEASURES if measure != "sleep-episode"}
     assert check_schema_adoption.missing_canaries(index, SCHEMA_IDS) == ["sleep-episode"]
 
 
 def test_missing_canaries_flags_all_when_index_is_empty():
-    assert sorted(check_schema_adoption.missing_canaries({}, SCHEMA_IDS)) == [
-        "physical-activity", "sleep-episode", "total-sleep-time",
-    ]
+    assert sorted(check_schema_adoption.missing_canaries({}, SCHEMA_IDS)) == IEEE_MEASURES
 
 
 def test_missing_canaries_keys_on_resolved_measure_not_data_type():
     """sleep_duration resolves to total-sleep-time; IEEE never published sleep-duration."""
-    index = {"physical-activity": {"1.0"}, "sleep-episode": {"1.0"}, "sleep-duration": {"1.0"}}
+    index = {measure: {"1.0"} for measure in IEEE_MEASURES if measure != "total-sleep-time"}
+    index["sleep-duration"] = {"1.0"}
     assert check_schema_adoption.missing_canaries(index, SCHEMA_IDS) == ["total-sleep-time"]
 
 
@@ -345,9 +350,7 @@ def test_main_returns_zero_with_findings_and_reports_them(monkeypatch):
     monkeypatch.setattr(
         check_schema_adoption, "fetch_schema_paths",
         lambda project, ref, path=check_schema_adoption.DEFAULT_PATH: [
-            "schemas/physical_activity/physical-activity-1.0.json",
-            "schemas/sleep/sleep-episode-1.0.json",
-            "schemas/sleep/total-sleep-time-1.0.json",
+            *IEEE_CANARY_PATHS,
             "schemas/heart_rate/heart-rate-1.0.json",
         ],
     )
@@ -500,11 +503,7 @@ def test_fetch_omh_schemas_reports_non_json_as_a_failure(monkeypatch):
 
 
 def _ieee_paths(project, ref, path=None):
-    return [
-        "schemas/physical_activity/physical-activity-1.0.json",
-        "schemas/sleep/sleep-episode-1.0.json",
-        "schemas/sleep/total-sleep-time-1.0.json",
-    ]
+    return list(IEEE_CANARY_PATHS)
 
 
 def test_main_json_carries_deprecation_findings(monkeypatch, capsys):
@@ -599,7 +598,10 @@ def test_find_deprecations_still_accepts_a_cross_namespace_successor_of_the_same
 
 
 def test_run_omh_check_treats_zero_fetched_as_not_having_run(monkeypatch, capsys):
-    failures = [f"omh:schema-{i}:1.0 from https://example: HTTPError: HTTP Error 429" for i in range(14)]
+    failures = [
+        f"omh:schema-{i}:1.0 from https://example: HTTPError: HTTP Error 429"
+        for i in range(len(OMH_IDS))
+    ]
     monkeypatch.setattr(
         check_schema_adoption, "fetch_omh_schemas", lambda ids, ref="main": ({}, failures)
     )
@@ -608,11 +610,11 @@ def test_run_omh_check_treats_zero_fetched_as_not_having_run(monkeypatch, capsys
     )
     assert result.ran is False
     assert result.findings == []
-    assert "0 of 14 omh: schema(s)" in result.error
+    assert f"0 of {len(OMH_IDS)} omh: schema(s)" in result.error
     assert "429" in result.error
     err = capsys.readouterr().err
     assert "::warning::" in err
-    assert "0 of 14" in err
+    assert f"0 of {len(OMH_IDS)}" in err
 
 
 def test_run_omh_check_runs_when_at_least_one_schema_was_fetched(monkeypatch):
@@ -698,7 +700,7 @@ def test_main_json_reports_both_sources_down_and_exits_nonzero(monkeypatch, caps
 
 
 def test_run_omh_check_carries_the_ids_it_could_not_fetch(monkeypatch):
-    """1-of-14 failing still runs, but the unchecked id must not vanish into stderr:
+    """1-of-N failing still runs, but the unchecked id must not vanish into stderr:
     an upstream rename gives a permanent 404 and that schema then goes unchecked forever."""
     failure = "omh:rr-interval:1.0 from https://raw...: HTTPError: HTTP Error 404: Not Found"
     monkeypatch.setattr(

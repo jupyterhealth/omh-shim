@@ -1,0 +1,18 @@
+{
+  "id": "0d9c7e0a-5f0b-4c6e-8a1d-2b3c4d5e6f70",
+  "type": "running",
+  "name": "Morning Run",
+  "start_time": "2026-04-09T07:00:00+00:00",
+  "end_time": "2026-04-09T07:45:00+00:00",
+  "zone_offset": "+00:00",
+  "duration_seconds": 2700,
+  "source": {"provider": "oura", "source": "oura", "device": null, "device_type": "ring"},
+  "entry_source": "automatic",
+  "intensity": "high",
+  "calories_kcal": 410.0,
+  "distance_meters": 7500.0,
+  "avg_heart_rate_bpm": 152,
+  "max_heart_rate_bpm": 171,
+  "steps_count": 6800,
+  "moving_time_seconds": 2650
+}

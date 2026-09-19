@@ -18,15 +18,16 @@ _FILENAMES: dict[str, str] = {
     "omh:physical-activity:1.2": "data/omh_physical-activity_1-2.json",
     "omh:oxygen-saturation:2.0": "data/omh_oxygen-saturation_2-0.json",
     "omh:blood-glucose:4.0": "data/omh_blood-glucose_4-0.json",
-    # Clinical body schemas served to downstream consumers; no converters.
+    # Clinical body schemas; those without a converter are served for downstream consumers.
     "omh:blood-pressure:4.0": "data/omh_blood-pressure_4-0.json",
     "omh:body-temperature:4.0": "data/omh_body-temperature_4-0.json",
+    "omh:body-height:2.0": "data/omh_body-height_2-0.json",
     "omh:body-weight:3.0": "data/omh_body-weight_3-0.json",
     "omh:forced-expiratory-volume-1-second:1.0": "data/omh_forced-expiratory-volume-1-second_1-0.json",
     "omh:forced-vital-capacity:1.0": "data/omh_forced-vital-capacity_1-0.json",
     "omh:respiratory-rate:2.0": "data/omh_respiratory-rate_2-0.json",
     "omh:rr-interval:1.0": "data/omh_rr-interval_1-0.json",
-    # IEEE 1752 body schemas (ieee: namespace) served to downstream consumers.
+    # IEEE 1752 body schemas (ieee: namespace); all currently have converters.
     "ieee:sleep-stage-summary:1.0": "data/ieee_sleep-stage-summary_1-0.json",
     "ieee:physical-activity:1.0": "data/ieee_physical-activity_1-0.json",
     "ieee:sleep-episode:1.0": "data/ieee_sleep-episode_1-0.json",

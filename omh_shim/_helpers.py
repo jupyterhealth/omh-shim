@@ -121,3 +121,11 @@ def set_optional(
     if v is None:
         return
     out[out_key] = {"value": cast(v * scale), "unit": unit}
+
+
+def require(sample: Mapping[str, Any], field: str, *, context: str) -> Any:
+    """``sample[field]``, or ``ConversionError`` when the key is absent or ``None``."""
+    value = sample.get(field)
+    if value is None:
+        raise ConversionError(f"{context} requires {field!r}")
+    return value

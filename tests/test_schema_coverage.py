@@ -28,10 +28,6 @@ SERVED_SAMPLES: dict[str, dict] = {
         "effective_time_frame": {"date_time": "2026-05-31T08:00:00Z"},
         "measurement_location": "oral",
     },
-    "omh:body-weight:3.0": {
-        "body_weight": {"value": 70.0, "unit": "kg"},
-        "effective_time_frame": {"date_time": "2026-05-31T08:00:00Z"},
-    },
     "omh:forced-expiratory-volume-1-second:1.0": {
         "forced_expiratory_volume_1_second": {"value": 3.2, "unit": "L"},
         "effective_time_frame": {"date_time": "2026-05-31T08:00:00Z"},
@@ -40,33 +36,8 @@ SERVED_SAMPLES: dict[str, dict] = {
         "forced_vital_capacity": {"value": 4.1, "unit": "L"},
         "effective_time_frame": {"date_time": "2026-05-31T08:00:00Z"},
     },
-    "omh:respiratory-rate:2.0": {
-        "respiratory_rate": {"value": 16, "unit": "breaths/min"},
-        "effective_time_frame": {"date_time": "2026-05-31T08:00:00Z"},
-    },
     "omh:rr-interval:1.0": {
         "rr_interval": {"value": 850, "unit": "ms"},
-    },
-    "ieee:time-in-bed:1.0": {
-        "time_in_bed": {"value": 480, "unit": "min"},
-        "effective_time_frame": {
-            "time_interval": {
-                "start_date_time": "2026-05-31T23:00:00Z",
-                "end_date_time": "2026-06-01T07:00:00Z",
-            },
-        },
-        "is_main_sleep": True,
-    },
-    "ieee:sleep-stage-summary:1.0": {
-        "sleep_stage_summary": {
-            "total_sleep_time": {"value": 480, "unit": "min"},
-        },
-        "effective_time_frame": {
-            "time_interval": {
-                "start_date_time": "2026-05-31T23:00:00Z",
-                "end_date_time": "2026-06-01T07:00:00Z",
-            },
-        },
     },
     "omh:physical-activity:1.2": {
         "activity_name": "walking",
@@ -112,6 +83,11 @@ SCHEMA_STATUS: frozenset[str] = frozenset({
     "ieee_physical-activity_1-0.json",
     "ieee_sleep-episode_1-0.json",
     "ieee_total-sleep-time_1-0.json",
+    "omh_respiratory-rate_2-0.json",
+    "omh_body-weight_3-0.json",
+    "omh_body-height_2-0.json",
+    "ieee_time-in-bed_1-0.json",
+    "ieee_sleep-stage-summary_1-0.json",
 })
 
 # Body schemas vendored so downstream consumers (e.g. the JHE MCP server) can
@@ -120,13 +96,9 @@ SCHEMA_STATUS: frozenset[str] = frozenset({
 SERVED_NO_CONVERTER: frozenset[str] = frozenset({
     "omh_blood-pressure_4-0.json",
     "omh_body-temperature_4-0.json",
-    "omh_body-weight_3-0.json",
     "omh_forced-expiratory-volume-1-second_1-0.json",
     "omh_forced-vital-capacity_1-0.json",
-    "omh_respiratory-rate_2-0.json",
     "omh_rr-interval_1-0.json",
-    "ieee_sleep-stage-summary_1-0.json",
-    "ieee_time-in-bed_1-0.json",
     "omh_physical-activity_1-2.json",
     "omh_sleep-episode_1-1.json",
     "omh_step-count_3-0.json",
@@ -310,7 +282,10 @@ OMH_BODIES_REFERENCING_IEEE_URI: dict[str, dict] = {
     },
     "omh:blood-pressure:4.0": SERVED_SAMPLES["omh:blood-pressure:4.0"],
     "omh:body-temperature:4.0": SERVED_SAMPLES["omh:body-temperature:4.0"],
-    "omh:body-weight:3.0": SERVED_SAMPLES["omh:body-weight:3.0"],
+    "omh:body-weight:3.0": {
+        "body_weight": {"value": 70.0, "unit": "kg"},
+        "effective_time_frame": {"date_time": "2026-05-31T08:00:00Z"},
+    },
     "omh:forced-vital-capacity:1.0": SERVED_SAMPLES["omh:forced-vital-capacity:1.0"],
     "omh:forced-expiratory-volume-1-second:1.0": SERVED_SAMPLES[
         "omh:forced-expiratory-volume-1-second:1.0"
@@ -343,7 +318,15 @@ def test_ieee_bodies_accept_every_ieee_descriptive_statistic_value():
     ).contents["enum"]
     for sid, body in (
         ("ieee:physical-activity:1.0", SERVED_SAMPLES["omh:physical-activity:1.2"]),
-        ("ieee:sleep-stage-summary:1.0", SERVED_SAMPLES["ieee:sleep-stage-summary:1.0"]),
+        ("ieee:sleep-stage-summary:1.0", {
+            "sleep_stage_summary": {"total_sleep_time": {"value": 480, "unit": "min"}},
+            "effective_time_frame": {
+                "time_interval": {
+                    "start_date_time": "2026-05-31T23:00:00Z",
+                    "end_date_time": "2026-06-01T07:00:00Z",
+                },
+            },
+        }),
     ):
         for stat in ieee_enum:
             _validate.validate_output({**body, "descriptive_statistic": stat}, sid)

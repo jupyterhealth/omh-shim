@@ -106,7 +106,7 @@ DAILY_CASES = [
     ("oura_raw", "physical_activity", {"day": "2026-04-09"}),
     ("oura_raw", "oxygen_saturation", {"day": "2026-04-09", "spo2_percentage": {"average": 96.5}}),
     ("ow_normalized", "physical_activity", {"date": "2026-04-09"}),
-    ("ow_normalized", "sleep_duration", {"date": "2026-04-09", "sleep_total_duration_minutes": 480}),
+    ("ow_normalized", "sleep_duration", {"date": "2026-04-09", "duration_minutes": 480}),
 ]
 
 
@@ -144,8 +144,13 @@ NAIVE_CASES = [
      "bedtime_end": "2026-04-10T06:00:00"}),
     ("ow_normalized", "heart_rate", {"timestamp": "2026-04-09T08:30:00",
      "type": "heart_rate", "value": 72}),
-    ("ow_normalized", "sleep_episode", {"bedtime_start": "2026-04-09T22:00:00",
-     "bedtime_end": "2026-04-10T06:00:00"}),
+    ("ow_normalized", "sleep_episode", {"start_time": "2026-04-09T22:00:00",
+     "end_time": "2026-04-10T06:00:00"}),
+    ("ow_normalized", "physical_activity", {"type": "running",
+     "start_time": "2026-04-09T07:00:00", "end_time": "2026-04-09T07:45:00"}),
+    ("oura_raw", "physical_activity", {"activity": "running",
+     "start_datetime": "2026-04-09T07:00:00", "end_datetime": "2026-04-09T07:45:00"}),
+    ("oura_raw", "body_weight", {"weight": 72.5, "timestamp": "2026-04-10T07:00:00"}),
 ]
 
 
@@ -207,7 +212,7 @@ def test_oura_heart_rate_preserves_fractional_bpm():
 def test_ow_sleep_duration_fractional_minutes():
     """32.5 minutes -> 1950 seconds (not 1920 from int-then-scale)."""
     result = convert(source="ow_normalized", data_type="sleep_duration",
-                     sample={"date": "2026-04-09", "sleep_total_duration_minutes": 32.5},
+                     sample={"date": "2026-04-09", "duration_minutes": 32.5},
                      tz=UTC)
     assert result["body"]["total_sleep_time"]["value"] == 1950
 
@@ -283,6 +288,21 @@ def test_header_omits_external_datasheets_when_no_source():
                      sample={"timestamp": "2026-04-09T08:00:00Z",
                              "type": "heart_rate", "value": 72})
     assert "external_datasheets" not in result["header"]
+
+
+def test_header_external_datasheets_falls_back_to_provider():
+    """OW's Oura ingest records no device model, so the provider names the manufacturer."""
+    import json
+    from pathlib import Path
+
+    sample = json.loads(
+        (Path(__file__).parent / "fixtures" / "ow_normalized"
+         / "sleep_episode_input.json").read_text()
+    )
+    result = convert(source="ow_normalized", data_type="sleep_episode", sample=sample)
+    assert result["header"]["external_datasheets"] == [
+        {"datasheet_type": "manufacturer", "datasheet_reference": "oura"},
+    ]
 
 
 def test_header_external_datasheets_oura_raw_implicit_device():
@@ -589,9 +609,9 @@ def test_sleep_duration_emits_ieee_field_name():
 @pytest.mark.parametrize("source,sample", [
     ("oura_raw", {"bedtime_start": "2026-04-09T22:30:00Z",
                   "bedtime_end": "2026-04-10T06:45:00Z", "efficiency": 92.5}),
-    ("ow_normalized", {"bedtime_start": "2026-04-09T22:30:00Z",
-                       "bedtime_end": "2026-04-10T06:45:00Z",
-                       "sleep_efficiency_score": 92.5}),
+    ("ow_normalized", {"start_time": "2026-04-09T22:30:00Z",
+                       "end_time": "2026-04-10T06:45:00Z",
+                       "efficiency_percent": 92.5}),
 ])
 def test_sleep_episode_uses_ieee_efficiency_field(source, sample):
     """IEEE has no additionalProperties:false, so validation alone can't catch

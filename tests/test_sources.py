@@ -24,6 +24,11 @@ DATA_TYPES = [
     "sleep_duration",
     "sleep_episode",
     "physical_activity",
+    "respiratory_rate",
+    "body_weight",
+    "body_height",
+    "time_in_bed",
+    "sleep_stage_summary",
 ]
 SOURCES = ["oura_raw", "ow_normalized"]
 
@@ -43,29 +48,99 @@ def test_converter_matches_expected(source, data_type):
 # --- source-specific edge cases ---
 
 
-def test_oura_sleep_episode_nap_is_not_main_sleep():
-    sample = {
-        "id": "nap-1",
-        "bedtime_start": "2026-04-09T13:00:00+00:00",
-        "bedtime_end": "2026-04-09T13:45:00+00:00",
-        "total_sleep_duration": 2400,
-        "type": "nap",
-    }
+_OURA_SLEEP_BOUNDS = {
+    "bedtime_start": "2026-04-09T13:00:00+00:00",
+    "bedtime_end": "2026-04-09T13:45:00+00:00",
+}
+
+
+@pytest.mark.parametrize("sleep_type,expected", [
+    ("long_sleep", True), ("sleep", False), ("late_nap", False),
+])
+def test_oura_sleep_episode_is_main_sleep_follows_public_sleep_type(sleep_type, expected):
+    """Oura defines `sleep` as a <=3 h confirmed sleep/nap and only `long_sleep` (>3 h) as
+    main sleep, matching OW's `is_nap` rule."""
+    sample = {**_OURA_SLEEP_BOUNDS, "total_sleep_duration": 2400, "type": sleep_type}
     result = convert(source="oura_raw", data_type="sleep_episode", sample=sample)
-    assert result["body"]["is_main_sleep"] is False
+    assert result["body"]["is_main_sleep"] is expected
+
+
+@pytest.mark.parametrize("sleep_type", ["deleted", "rest"])
+def test_oura_sleep_episode_rejects_rest_and_deleted(sleep_type):
+    """`rest` is a falsely detected sleep the user rejected, which Open Wearables also skips."""
+    with pytest.raises(ConversionError, match="type"):
+        convert(source="oura_raw", data_type="sleep_episode",
+                sample={**_OURA_SLEEP_BOUNDS, "type": sleep_type})
+
+
+def test_oura_sleep_episode_omits_is_main_sleep_when_type_absent():
+    body = convert(source="oura_raw", data_type="sleep_episode", sample=_OURA_SLEEP_BOUNDS)["body"]
+    assert "is_main_sleep" not in body
+
+
+def test_oura_sleep_duration_rejects_deleted_record():
+    """A deleted Oura sleep must not become an Observation under any sleep-derived data type."""
+    with pytest.raises(ConversionError, match="deleted"):
+        convert(source="oura_raw", data_type="sleep_duration",
+                sample={**_OURA_SLEEP_BOUNDS, "total_sleep_duration": 2400, "type": "deleted"})
+
+
+def test_oura_sleep_duration_requires_total_sleep_duration():
+    with pytest.raises(ConversionError, match="total_sleep_duration"):
+        convert(source="oura_raw", data_type="sleep_duration",
+                sample={**_OURA_SLEEP_BOUNDS, "total_sleep_duration": None})
+
+
+# Every raw Oura sleep-derived data type reads the same sleep/data[i] item.
+_OURA_SLEEP_DATA_TYPES = [
+    "sleep_episode", "sleep_duration", "time_in_bed",
+    "sleep_stage_summary", "respiratory_rate", "heart_rate",
+]
+_OURA_MAIN_SLEEP_FLAG_TYPES = {"sleep_episode", "sleep_duration", "time_in_bed", "sleep_stage_summary"}
+_OURA_FULL_SLEEP_RECORD = {
+    **_OURA_SLEEP_BOUNDS,
+    "total_sleep_duration": 27600,
+    "time_in_bed": 29700,
+    "average_breath": 14.2,
+    "lowest_heart_rate": 48,
+}
+
+
+@pytest.mark.parametrize("data_type", _OURA_SLEEP_DATA_TYPES)
+def test_oura_sleep_unknown_type_converts_without_main_sleep_flag(data_type):
+    """An unpublished PublicSleepType leaves the main/nap label unknown, not the record wrong."""
+    body = convert(source="oura_raw", data_type=data_type,
+                   sample={**_OURA_FULL_SLEEP_RECORD, "type": "future_value"})["body"]
+    if data_type in _OURA_MAIN_SLEEP_FLAG_TYPES:
+        assert "is_main_sleep" not in body
+
+
+@pytest.mark.parametrize("data_type", _OURA_SLEEP_DATA_TYPES)
+def test_oura_sleep_rest_record_rejected_for_every_data_type(data_type):
+    """The one gate is _sleep_interval, so no sleep-derived body can escape a rejected record."""
+    with pytest.raises(ConversionError, match="rest"):
+        convert(source="oura_raw", data_type=data_type,
+                sample={**_OURA_FULL_SLEEP_RECORD, "type": "rest"})
+
+
+@pytest.mark.parametrize("data_type", [
+    "sleep_duration", "time_in_bed", "sleep_stage_summary", "respiratory_rate", "heart_rate",
+])
+def test_oura_sleep_rest_beats_the_required_field_check(data_type):
+    """Each converter reads the interval first, so a rejected record reports the type,
+    not whichever field it also happens to be missing."""
+    with pytest.raises(ConversionError, match="rest"):
+        convert(source="oura_raw", data_type=data_type,
+                sample={**_OURA_SLEEP_BOUNDS, "type": "rest"})
 
 
 def test_oura_physical_activity_omits_optional_fields_when_absent():
-    result = convert(
-        source="oura_raw",
-        data_type="physical_activity",
-        sample={"day": "2026-04-09"},
-        tz=UTC,
-    )
+    result = convert(source="oura_raw", data_type="physical_activity",
+                     sample={"day": "2026-04-09"}, tz=UTC)
     body = result["body"]
-    assert "distance" not in body
-    assert "kcal_burned" not in body
-    assert "base_movement_quantity" not in body
+    for key in ("distance", "kcal_burned", "base_movement_quantity", "duration_light_activity",
+                "duration_moderate_activity", "duration_vigorous_activity"):
+        assert key not in body
 
 
 def test_oura_oxygen_saturation_rejects_missing_spo2_percentage():
@@ -82,17 +157,46 @@ def test_oura_oxygen_saturation_rejects_flat_value():
 
 
 def test_ow_physical_activity_omits_optional_fields_when_absent():
-    result = convert(
-        source="ow_normalized",
-        data_type="physical_activity",
-        sample={"date": "2026-04-09"},
-        tz=UTC,
-    )
+    result = convert(source="ow_normalized", data_type="physical_activity",
+                     sample={"date": "2026-04-09"}, tz=UTC)
     body = result["body"]
-    assert "distance" not in body
-    assert "kcal_burned" not in body
-    assert "base_movement_quantity" not in body
+    for key in ("distance", "kcal_burned", "base_movement_quantity", "duration",
+                "duration_light_activity", "duration_moderate_activity", "duration_vigorous_activity"):
+        assert key not in body
     assert body["activity_name"] == "daily activity summary"
+
+
+def test_ow_sleep_episode_null_stages_omits_stage_fields():
+    """OW serialises ``stages: null`` when a provider reports no staging."""
+    sample = {
+        "start_time": "2026-04-09T22:30:00Z",
+        "end_time": "2026-04-10T06:45:00Z",
+        "stages": None,
+        "is_nap": False,
+    }
+    body = convert(source="ow_normalized", data_type="sleep_episode", sample=sample)["body"]
+    for key in ("light_sleep_duration", "deep_sleep_duration", "rem_sleep_duration",
+                "wake_after_sleep_onset"):
+        assert key not in body
+    assert body["is_main_sleep"] is True
+
+
+def test_ow_sleep_episode_nap_is_not_main_sleep():
+    sample = {
+        "start_time": "2026-04-09T13:00:00Z",
+        "end_time": "2026-04-09T13:45:00Z",
+        "sleep_duration_seconds": 2400,
+        "is_nap": True,
+    }
+    result = convert(source="ow_normalized", data_type="sleep_episode", sample=sample)
+    assert result["body"]["is_main_sleep"] is False
+
+
+def test_ow_sleep_duration_requires_duration_minutes():
+    """ieee:total-sleep-time requires total_sleep_time; a null day cannot be converted."""
+    with pytest.raises(ConversionError, match="duration_minutes"):
+        convert(source="ow_normalized", data_type="sleep_duration",
+                sample={"date": "2026-04-09", "duration_minutes": None}, tz=UTC)
 
 
 def test_ow_blood_glucose_matches_expected():
@@ -102,3 +206,131 @@ def test_ow_blood_glucose_matches_expected():
     expected = json.loads((fixture_dir / "blood_glucose_expected.json").read_text())
     result = convert(source="ow_normalized", data_type="blood_glucose", sample=sample)
     assert result["body"] == expected
+
+
+def test_oura_respiratory_rate_requires_average_breath():
+    with pytest.raises(ConversionError, match="average_breath"):
+        convert(source="oura_raw", data_type="respiratory_rate",
+                sample={**_OURA_SLEEP_BOUNDS, "average_breath": None})
+
+
+@pytest.mark.parametrize("data_type", ["body_weight", "body_height"])
+def test_oura_body_weight_requires_caller_timestamp(data_type):
+    """Oura personal_info is a profile with no measurement time; the caller stamps one."""
+    with pytest.raises(ConversionError, match="caller-supplied 'timestamp'"):
+        convert(source="oura_raw", data_type=data_type,
+                sample={"id": "user-1", "weight": 72.5, "height": 1.78})
+
+
+def test_body_height_units_follow_the_source():
+    """OW converts Oura's metres to cm at ingest; omh-shim emits each source's native unit."""
+    ow = convert(source="ow_normalized", data_type="body_height",
+                 sample={"timestamp": "2026-04-10T07:00:00Z", "type": "height", "value": 178.0})
+    oura = convert(source="oura_raw", data_type="body_height",
+                   sample={"height": 1.78, "timestamp": "2026-04-10T07:00:00Z"})
+    assert ow["body"]["body_height"]["unit"] == "cm"
+    assert oura["body"]["body_height"]["unit"] == "m"
+
+
+_OW_SESSION_BOUNDS = {
+    "start_time": "2026-04-09T22:30:00Z",
+    "end_time": "2026-04-10T06:45:00Z",
+}
+
+
+@pytest.mark.parametrize("source,sample", [
+    ("ow_normalized", {**_OW_SESSION_BOUNDS, "time_in_bed_seconds": None}),
+    ("oura_raw", {**_OURA_SLEEP_BOUNDS, "time_in_bed": None}),
+])
+def test_time_in_bed_requires_the_duration(source, sample):
+    with pytest.raises(ConversionError, match=r"requires 'time_in_bed"):
+        convert(source=source, data_type="time_in_bed", sample=sample)
+
+
+@pytest.mark.parametrize("source,sample", [
+    ("ow_normalized", {**_OW_SESSION_BOUNDS, "sleep_duration_seconds": 27600, "stages": None}),
+    ("oura_raw", {**_OURA_SLEEP_BOUNDS, "total_sleep_duration": 27600}),
+])
+def test_sleep_stage_summary_validates_without_stage_fields(source, sample):
+    """Only total_sleep_time is schema-required; a provider with no staging still converts."""
+    body = convert(source=source, data_type="sleep_stage_summary", sample=sample)["body"]
+    assert set(body["sleep_stage_summary"]) == {"total_sleep_time"}
+
+
+@pytest.mark.parametrize("source,sample", [
+    ("ow_normalized", {**_OW_SESSION_BOUNDS, "sleep_duration_seconds": None}),
+    ("oura_raw", {**_OURA_SLEEP_BOUNDS, "total_sleep_duration": None}),
+])
+def test_sleep_stage_summary_requires_total_sleep_time(source, sample):
+    with pytest.raises(ConversionError,
+                       match=r"requires '(sleep_duration_seconds|total_sleep_duration)'"):
+        convert(source=source, data_type="sleep_stage_summary", sample=sample)
+
+
+def _load_pair(source: str, stem: str, subdir: str = "") -> tuple[dict, dict]:
+    fixture_dir = FIXTURES / source / subdir
+    return (
+        json.loads((fixture_dir / f"{stem}_input.json").read_text()),
+        json.loads((fixture_dir / f"{stem}_expected.json").read_text()),
+    )
+
+
+@pytest.mark.parametrize("source", SOURCES)
+def test_heart_rate_resting_branch_matches_expected(source):
+    """Resting HR rides on heart_rate: no resting-heart-rate schema exists to resolve to."""
+    sample, expected = _load_pair(source, "heart_rate_resting", "branches")
+    result = convert(source=source, data_type="heart_rate", sample=sample)
+    assert result["body"] == expected
+
+
+@pytest.mark.parametrize("source", SOURCES)
+def test_heart_rate_plain_shape_has_no_sleep_context(source):
+    sample, _ = _load_pair(source, "heart_rate")
+    body = convert(source=source, data_type="heart_rate", sample=sample)["body"]
+    assert "temporal_relationship_to_sleep" not in body
+    assert "descriptive_statistic" not in body
+
+
+def test_oura_heart_rate_sleep_record_requires_lowest_heart_rate():
+    with pytest.raises(ConversionError, match="lowest_heart_rate"):
+        convert(source="oura_raw", data_type="heart_rate",
+                sample={**_OURA_SLEEP_BOUNDS, "lowest_heart_rate": None})
+
+
+@pytest.mark.parametrize("source", SOURCES)
+def test_physical_activity_workout_branch_matches_expected(source):
+    """A workout needs no tz: its frame is the session interval, not a calendar day."""
+    sample, expected = _load_pair(source, "physical_activity_workout", "branches")
+    result = convert(source=source, data_type="physical_activity", sample=sample)
+    assert result["body"] == expected
+
+
+@pytest.mark.parametrize("source", SOURCES)
+def test_physical_activity_rejects_unrecognised_shape(source):
+    with pytest.raises(ConversionError, match="expects"):
+        convert(source=source, data_type="physical_activity", sample={"steps": 100}, tz=UTC)
+
+
+@pytest.mark.parametrize("source,intensity,expected", [
+    ("ow_normalized", "low", "light"),
+    ("ow_normalized", "moderate", "moderate"),
+    ("ow_normalized", "high", "vigorous"),
+    ("oura_raw", "easy", "light"),
+    ("oura_raw", "moderate", "moderate"),
+    ("oura_raw", "hard", "vigorous"),
+])
+def test_workout_intensity_maps_to_the_ieee_enum(source, intensity, expected):
+    """Each source has its own intensity vocabulary; both land on IEEE's light|moderate|vigorous."""
+    sample, _ = _load_pair(source, "physical_activity_workout", "branches")
+    body = convert(source=source, data_type="physical_activity",
+                   sample={**sample, "intensity": intensity})["body"]
+    assert body["reported_activity_intensity"] == expected
+
+
+@pytest.mark.parametrize("source", SOURCES)
+@pytest.mark.parametrize("intensity", ["unknown", None])
+def test_workout_unmapped_intensity_is_omitted(source, intensity):
+    sample, _ = _load_pair(source, "physical_activity_workout", "branches")
+    body = convert(source=source, data_type="physical_activity",
+                   sample={**sample, "intensity": intensity})["body"]
+    assert "reported_activity_intensity" not in body

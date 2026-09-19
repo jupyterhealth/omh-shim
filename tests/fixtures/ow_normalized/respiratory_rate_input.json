@@ -1,0 +1,9 @@
+{
+  "timestamp": "2026-04-10T06:45:00+00:00",
+  "zone_offset": "+00:00",
+  "type": "respiratory_rate",
+  "value": 14.2,
+  "unit": "brpm",
+  "source": {"provider": "oura", "source": "oura", "device": null, "device_type": "ring"},
+  "is_daily_total": false
+}

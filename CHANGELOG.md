@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `ow_normalized.sleep_episode` and `ow_normalized.sleep_duration` now read the shapes
+  Open Wearables actually serves (`SleepSession` from `/events/sleep`, `SleepSummary`
+  from `/summaries/sleep`). They previously read `bedtime_start`,
+  `sleep_total_duration_minutes`, `sleep_awake_minutes` and `sleep_efficiency_score` —
+  Oura raw field names plus OW's *internal* column names — which the OW HTTP API has
+  never emitted at any revision, so every real response raised `ConversionError`. The
+  old input shape is dropped rather than tolerated. Filed as a fix, not a breaking
+  change: the documented contract for this source is "OW read-API shapes", and no
+  conforming caller could have existed. Output schema ids are unchanged.
+- `oura_raw` sets `is_main_sleep` from Oura's real `PublicSleepType` semantics
+  (`long_sleep` → main; `sleep` and `late_nap` are naps, since Oura caps `sleep` at
+  3 h), and rejects `rest` (a user-rejected false detection) and `deleted` for every
+  sleep-derived data type, matching what Open Wearables ingests. It previously tested
+  `type != "nap"`, a value Oura v2 does not publish, so naps were filed as main sleep.
+
+### Added
+
+- Five data types, each with an `ow_normalized` and an `oura_raw` converter:
+  `sleep_stage_summary` (`ieee:sleep-stage-summary:1.0`), `time_in_bed`
+  (`ieee:time-in-bed:1.0`), `respiratory_rate` (`omh:respiratory-rate:2.0`),
+  `body_weight` (`omh:body-weight:3.0`), `body_height` (`omh:body-height:2.0`, newly
+  vendored). The first four schemas were served-only before; they now resolve.
+- `heart_rate` accepts a resting-heart-rate sample on both sources (OW
+  `type=resting_heart_rate`; an Oura sleep item's `lowest_heart_rate`) and emits
+  `temporal_relationship_to_sleep: "during sleep"`; the Oura body also carries
+  `descriptive_statistic: "minimum"`.
+- `physical_activity` accepts a workout on both sources (OW `Workout`; Oura
+  `/workout` item); on daily summaries, both sources emit
+  `duration_light/moderate/vigorous_activity`; the OW daily summary also emits
+  `duration` (from `active_minutes`), and the OW workout emits `duration` (from
+  `duration_seconds`).
+- `oura_raw.body_weight` / `body_height` read a caller-supplied `timestamp`: Oura's
+  `personal_info` is a profile with no measurement time.
+- `duration_light/moderate/vigorous_activity` are emitted in `min` from
+  `ow_normalized` (OW reports intensity minutes) and in `sec` from `oura_raw` (Oura
+  reports activity time in seconds); consumers comparing the field across sources
+  must read `unit`.
+- Both `sleep_episode` converters now emit `light_sleep_duration`,
+  `deep_sleep_duration` and `rem_sleep_duration`, which the inputs already carried.
+- `oura_raw.sleep_duration` now emits `is_main_sleep` from the record's `type` (as
+  `time_in_bed` and `sleep_stage_summary` do) and requires `total_sleep_duration`; a
+  null value raises `ConversionError` instead of a wrapped `TypeError`.
+
 ## [2.0.0] — 2026-09-16
 
 ### Changed (BREAKING)

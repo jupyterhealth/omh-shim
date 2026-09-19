@@ -19,7 +19,7 @@ __all__ = [
     "known_ids",
     "load_schema",
 ]
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 
 _NAMESPACE_PRECEDENCE: tuple[str, ...] = ("ieee", "omh")
 """Body-schema standards in preference order. No other namespace is permitted:
@@ -32,6 +32,11 @@ _SCHEMA_CANDIDATES: Mapping[str, tuple[str, ...]] = MappingProxyType({
     "physical_activity": ("ieee:physical-activity:1.0",),
     "oxygen_saturation": ("omh:oxygen-saturation:2.0",),
     "blood_glucose": ("omh:blood-glucose:4.0",),
+    "respiratory_rate": ("omh:respiratory-rate:2.0",),
+    "body_weight": ("omh:body-weight:3.0",),
+    "body_height": ("omh:body-height:2.0",),
+    "time_in_bed": ("ieee:time-in-bed:1.0",),
+    "sleep_stage_summary": ("ieee:sleep-stage-summary:1.0",),
 })
 """data_type -> candidate schema ids. A candidate must name the same measure as
 its data_type or the successor that measure's deprecated Open mHealth schema

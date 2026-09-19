@@ -46,9 +46,10 @@ TARGETS: list[tuple[str, str]] = [
     ("data/omh_physical-activity_1-2.json", "physical-activity-1.2.json"),
     ("data/omh_oxygen-saturation_2-0.json", "oxygen-saturation-2.0.json"),
     ("data/omh_blood-glucose_4-0.json", "blood-glucose-4.0.json"),
-    # Clinical body schemas (served for downstream consumers; no converters).
+    # Clinical body schemas (some served-only, some with converters).
     ("data/omh_blood-pressure_4-0.json", "blood-pressure-4.0.json"),
     ("data/omh_body-temperature_4-0.json", "body-temperature-4.0.json"),
+    ("data/omh_body-height_2-0.json", "body-height-2.0.json"),
     ("data/omh_body-weight_3-0.json", "body-weight-3.0.json"),
     ("data/omh_forced-expiratory-volume-1-second_1-0.json", "forced-expiratory-volume-1-second-1.0.json"),
     ("data/omh_forced-vital-capacity_1-0.json", "forced-vital-capacity-1.0.json"),
@@ -103,7 +104,7 @@ IEEE_UTILITY_TARGETS: list[tuple[str, str]] = [
     ("utility/speed-unit-value-1.0.json", "utility/speed-unit-value-1.0.json"),
 ]
 
-# IEEE 1752 body schemas from opensource.ieee.org/omh/1752; only sleep-stage-summary has no converter.
+# IEEE 1752 body schemas from opensource.ieee.org/omh/1752; all five have converters.
 IEEE_DATA_TARGETS: list[tuple[str, str]] = [
     # (vendored path under SCHEMAS_DIR, upstream path under schemas/)
     ("data/ieee_sleep-stage-summary_1-0.json", "sleep/sleep-stage-summary-1.0.json"),
