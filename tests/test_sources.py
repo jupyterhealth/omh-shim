@@ -203,10 +203,12 @@ def test_oura_respiratory_rate_requires_average_breath():
                 sample={**_OURA_SLEEP_BOUNDS, "average_breath": None})
 
 
-def test_oura_body_weight_requires_caller_timestamp():
+@pytest.mark.parametrize("data_type", ["body_weight", "body_height"])
+def test_oura_body_weight_requires_caller_timestamp(data_type):
     """Oura personal_info is a profile with no measurement time; the caller stamps one."""
-    with pytest.raises(ConversionError, match="timestamp"):
-        convert(source="oura_raw", data_type="body_weight", sample={"id": "user-1", "weight": 72.5})
+    with pytest.raises(ConversionError, match="caller-supplied 'timestamp'"):
+        convert(source="oura_raw", data_type=data_type,
+                sample={"id": "user-1", "weight": 72.5, "height": 1.78})
 
 
 def test_body_height_units_follow_the_source():
@@ -230,7 +232,7 @@ _OW_SESSION_BOUNDS = {
     ("oura_raw", {**_OURA_SLEEP_BOUNDS, "time_in_bed": None}),
 ])
 def test_time_in_bed_requires_the_duration(source, sample):
-    with pytest.raises(ConversionError, match="time_in_bed"):
+    with pytest.raises(ConversionError, match=r"requires 'time_in_bed"):
         convert(source=source, data_type="time_in_bed", sample=sample)
 
 
@@ -249,7 +251,8 @@ def test_sleep_stage_summary_validates_without_stage_fields(source, sample):
     ("oura_raw", {**_OURA_SLEEP_BOUNDS, "total_sleep_duration": None}),
 ])
 def test_sleep_stage_summary_requires_total_sleep_time(source, sample):
-    with pytest.raises(ConversionError):
+    with pytest.raises(ConversionError,
+                       match=r"requires '(sleep_duration_seconds|total_sleep_duration)'"):
         convert(source=source, data_type="sleep_stage_summary", sample=sample)
 
 
@@ -293,12 +296,29 @@ def test_physical_activity_workout_branch_matches_expected(source):
 
 @pytest.mark.parametrize("source", SOURCES)
 def test_physical_activity_rejects_unrecognised_shape(source):
-    with pytest.raises(ConversionError, match="physical_activity"):
+    with pytest.raises(ConversionError, match="expects"):
         convert(source=source, data_type="physical_activity", sample={"steps": 100}, tz=UTC)
 
 
-@pytest.mark.parametrize("source,intensity", [("ow_normalized", "unknown"), ("ow_normalized", None)])
-def test_ow_workout_unknown_intensity_is_omitted(source, intensity):
+@pytest.mark.parametrize("source,intensity,expected", [
+    ("ow_normalized", "low", "light"),
+    ("ow_normalized", "moderate", "moderate"),
+    ("ow_normalized", "high", "vigorous"),
+    ("oura_raw", "easy", "light"),
+    ("oura_raw", "moderate", "moderate"),
+    ("oura_raw", "hard", "vigorous"),
+])
+def test_workout_intensity_maps_to_the_ieee_enum(source, intensity, expected):
+    """Each source has its own intensity vocabulary; both land on IEEE's light|moderate|vigorous."""
+    sample, _ = _load_pair(source, "physical_activity_workout", "branches")
+    body = convert(source=source, data_type="physical_activity",
+                   sample={**sample, "intensity": intensity})["body"]
+    assert body["reported_activity_intensity"] == expected
+
+
+@pytest.mark.parametrize("source", SOURCES)
+@pytest.mark.parametrize("intensity", ["unknown", None])
+def test_workout_unmapped_intensity_is_omitted(source, intensity):
     sample, _ = _load_pair(source, "physical_activity_workout", "branches")
     body = convert(source=source, data_type="physical_activity",
                    sample={**sample, "intensity": intensity})["body"]

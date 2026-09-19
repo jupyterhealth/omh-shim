@@ -9,5 +9,8 @@
   "distance": {"value": 6240.5, "unit": "m"},
   "kcal_burned": {"value": 342.5, "unit": "kcal"},
   "base_movement_quantity": {"value": 8432, "unit": "steps"},
-  "duration": {"value": 60, "unit": "min"}
+  "duration": {"value": 60, "unit": "min"},
+  "duration_light_activity": {"value": 30, "unit": "min"},
+  "duration_moderate_activity": {"value": 20, "unit": "min"},
+  "duration_vigorous_activity": {"value": 10, "unit": "min"}
 }

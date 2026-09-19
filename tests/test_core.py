@@ -150,6 +150,7 @@ NAIVE_CASES = [
      "start_time": "2026-04-09T07:00:00", "end_time": "2026-04-09T07:45:00"}),
     ("oura_raw", "physical_activity", {"activity": "running",
      "start_datetime": "2026-04-09T07:00:00", "end_datetime": "2026-04-09T07:45:00"}),
+    ("oura_raw", "body_weight", {"weight": 72.5, "timestamp": "2026-04-10T07:00:00"}),
 ]
 
 
