@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `ow_normalized.heart_rate` now emits `descriptive_statistic: "minimum"` on a
+  resting-heart-rate sample whose `source.provider` is `oura`, alongside
+  `temporal_relationship_to_sleep: "during sleep"`, matching `oura_raw`. OW's
+  `resting_heart_rate` for Oura is the night's lowest heart rate during sleep; other
+  providers feed the same series with other measures, so they get no statistic. That
+  is not the clinical (awake, at rest) definition, so
+  `temporal_relationship_to_physical_activity: "at rest"` is deliberately not set.
+
 ## [2.1.0] — 2026-09-19
 
 ### Fixed

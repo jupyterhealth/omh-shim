@@ -20,7 +20,7 @@ This document covers the **body** content of each converter. For the IEEE 1752.1
 
 ### Resting heart rate
 
-A `TimeSeriesSample` with `type=resting_heart_rate` (OW's per-night scalar; Oura's `lowest_heart_rate`) converts through the same function and additionally emits `temporal_relationship_to_sleep: "during sleep"`. No `descriptive_statistic` is set: OW's series is provider-generic, so omh-shim does not claim it is a minimum. The `oura_raw` counterpart does.
+A `TimeSeriesSample` with `type=resting_heart_rate` (OW's per-night scalar; Oura's `lowest_heart_rate`) converts through the same function and additionally emits `temporal_relationship_to_sleep: "during sleep"`. When `source.provider` is `oura` it also emits `descriptive_statistic: "minimum"`, matching the `oura_raw` counterpart: Oura documents `lowest_heart_rate` as the lowest HR during sleep. OW's series is provider-generic, so other providers get no statistic. `temporal_relationship_to_physical_activity: "at rest"` is never set: that is the clinical (awake, at rest) definition, which a sleep minimum is not.
 
 ### Not mapped
 

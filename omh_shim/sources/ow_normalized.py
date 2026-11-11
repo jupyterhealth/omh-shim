@@ -24,6 +24,8 @@ def heart_rate(sample: Mapping[str, Any], *, tz: tzinfo | None) -> dict[str, Any
     # OW's resting series is provider-generic; for Oura it is the per-night lowest HR during sleep.
     if sample.get("type") == "resting_heart_rate":
         out["temporal_relationship_to_sleep"] = "during sleep"
+        if (sample.get("source") or {}).get("provider") == "oura":
+            out["descriptive_statistic"] = "minimum"
     return out
 
 

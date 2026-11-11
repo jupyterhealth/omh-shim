@@ -283,6 +283,14 @@ def test_heart_rate_resting_branch_matches_expected(source):
     assert result["body"] == expected
 
 
+def test_ow_resting_heart_rate_from_other_provider_is_not_a_minimum():
+    """OW's resting series is provider-generic; only Oura's is documented as the sleep minimum."""
+    sample, _ = _load_pair("ow_normalized", "heart_rate_resting", "branches")
+    sample["source"] = {**sample["source"], "provider": "apple", "source": "Health"}
+    body = convert(source="ow_normalized", data_type="heart_rate", sample=sample)["body"]
+    assert "descriptive_statistic" not in body
+
+
 @pytest.mark.parametrize("source", SOURCES)
 def test_heart_rate_plain_shape_has_no_sleep_context(source):
     sample, _ = _load_pair(source, "heart_rate")
