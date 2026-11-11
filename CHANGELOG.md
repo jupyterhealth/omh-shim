@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] — 2026-11-11
+
 ### Changed
 
 - `ow_normalized.heart_rate` now emits `descriptive_statistic: "minimum"` on a
